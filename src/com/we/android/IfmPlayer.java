@@ -9,12 +9,14 @@ import java.net.URL;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import android.app.AlertDialog;
 import android.app.ListActivity;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
@@ -40,8 +42,9 @@ import android.widget.Toast;
 
 public class IfmPlayer extends ListActivity {
 
+	private static final int SECOND_IN_MICROSECONDS = 1000;
 	private static final String IFM_URL = "http://intergalacticfm.com";
-	private static final int CHANNEL_UPDATE_FREQUENCY = 20000;
+	private static final int CHANNEL_UPDATE_FREQUENCY = 20 * SECOND_IN_MICROSECONDS;
 	private static final int IFM_NOTIFICATION = 0;
 	private static int NUMBER_OF_CHANNELS = 4;
 
@@ -49,7 +52,7 @@ public class IfmPlayer extends ListActivity {
 	private ProgressDialog mProgress;
 
 	private static final int NONE = Integer.MAX_VALUE;
-	private static final int CONNECTION_TIMEOUT = 10 * 1000;			// 10 sekunden 
+	private static final int CONNECTION_TIMEOUT = 20 * 	SECOND_IN_MICROSECONDS;
 	private int mChannelPlaying;
 	private boolean mIsPreparing;
 	private int mSelectedChannel;
@@ -255,7 +258,7 @@ public class IfmPlayer extends ListActivity {
 		mChannelViewAdapter = new ChannelViewAdapter();
 		setListAdapter(mChannelViewAdapter);
 		mProgress = new ProgressDialog(this);
-		requestChannelUris(mProgress);
+		requestChannelUris();
 
 		getListView().setDivider(null);
 
@@ -378,15 +381,21 @@ public class IfmPlayer extends ListActivity {
 		}
 	}
 
-	private void requestChannelUris(final ProgressDialog progress) {
-		progress.setMessage("Connecting to Blackhole...");
-		progress.show();
+	private void requestChannelUris() {
+		mProgress.setMessage("Connecting to Blackhole...");
+		mProgress.show();
 		Timer timer = new Timer();
 		timer.schedule(new TimerTask() {
 			@Override
 			public void run() {
 				if (!mChannelUrisResolved) {
-					Log.d("IFM", "zu spaet");
+					mProgress.cancel();
+					runOnUiThread(new Runnable() {
+						@Override
+						public void run() {
+							showConectionAlert();
+						}
+					});
 				}
 			}
 		}, CONNECTION_TIMEOUT);
@@ -402,11 +411,29 @@ public class IfmPlayer extends ListActivity {
 				runOnUiThread(new Runnable() {
 					@Override
 					public void run() {
-						progress.cancel();
+						mProgress.cancel();
 					}
 				});
 			}
 		}).start();
+	}
+	
+	private void showConectionAlert() {
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		builder.setMessage("Connection Problem")
+		       .setCancelable(false)
+		       .setPositiveButton("Retry", new DialogInterface.OnClickListener() {
+		           public void onClick(DialogInterface dialog, int id) {
+		        	   requestChannelUris();
+		           }
+		       })
+		       .setNegativeButton("Finish", new DialogInterface.OnClickListener() {
+		           public void onClick(DialogInterface dialog, int id) {
+		                finish();
+		           }
+		       });
+		AlertDialog alert = builder.create();
+		alert.show();
 	}
 	
 	private Uri getChannelUri(int channel) {
