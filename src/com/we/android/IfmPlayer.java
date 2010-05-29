@@ -158,9 +158,14 @@ public class IfmPlayer extends ListActivity {
 		
 		private String getArtist(String channelInfo) {
 			String tag = "<div id=\"track-info-trackname\">";
-			int from = channelInfo.indexOf(tag);
-			int p = channelInfo.indexOf(">", from + tag.length());
-			return channelInfo.substring(p+2, channelInfo.indexOf("</a>", from));
+			int startSearchFrom = channelInfo.indexOf(tag);
+			int from = channelInfo.indexOf(">", startSearchFrom + tag.length()) + 2;
+			int to = channelInfo.indexOf("</a>", from);
+			if ((from < channelInfo.length()) && (to < channelInfo.length()) && (from < to)) {
+				return channelInfo.substring(from, to);
+			} else {
+				return "";
+			}
 		}
 
 		private String getLabel(String channelInfo) {
