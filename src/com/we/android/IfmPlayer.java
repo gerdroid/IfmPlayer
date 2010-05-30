@@ -164,17 +164,14 @@ public class IfmPlayer extends ListActivity {
 			int startSearchFrom = channelInfo.indexOf(tag);
 			int from = channelInfo.indexOf(">", startSearchFrom + tag.length()) + 2;
 			int to = channelInfo.indexOf("</a>", from);
-			if ((from < channelInfo.length()) && (to < channelInfo.length()) && (from < to)) {
-				return channelInfo.substring(from, to);
-			} else {
-				return "";
-			}
+			return extractSubstring(channelInfo, from, to);
 		}
 
 		private String getLabel(String channelInfo) {
 			String tag = "<div id=\"track-info-label\">";
-			int from = channelInfo.indexOf(tag);
-			return channelInfo.substring(from + tag.length(), channelInfo.indexOf("</div>", from));
+			int from = channelInfo.indexOf(tag) + tag.length();
+			int to = channelInfo.indexOf("</div>", from);
+			return extractSubstring(channelInfo, from, to);
 		}
 		
 		private URL getCoverArt(String channelInfo) {
@@ -183,7 +180,8 @@ public class IfmPlayer extends ListActivity {
 			int indexOf = channelInfo.indexOf(searchterm);
 			if (indexOf != -1) {
 				int from = indexOf + searchterm.length() + 1;
-				String pathToImage = channelInfo.substring(from, channelInfo.indexOf("\"", from));
+				int to = channelInfo.indexOf("\"", from);
+				String pathToImage = extractSubstring(channelInfo, from, to);
 				try {
 					url = new URL(IFM_URL + pathToImage);
 				} catch (MalformedURLException e) {
@@ -191,6 +189,14 @@ public class IfmPlayer extends ListActivity {
 				}
 			}
 			return url;
+		}
+		
+		private String extractSubstring(String str, int from, int to) {
+			if ((from < str.length()) && (to < str.length()) && (from < to)) {
+				return str.substring(from, to);
+			} else {
+				return "";
+			}
 		}
 	}
 
