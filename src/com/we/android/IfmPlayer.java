@@ -52,7 +52,7 @@ public class IfmPlayer extends ListActivity {
 	private ProgressDialog mProgress;
 
 	private static final int NONE = Integer.MAX_VALUE;
-	private static final int CONNECTION_TIMEOUT = 20 * 	SECOND_IN_MICROSECONDS;
+	private static final int CONNECTION_TIMEOUT = 20 * SECOND_IN_MICROSECONDS;
 	private int mChannelPlaying;
 	private boolean mIsPreparing;
 	private int mSelectedChannel;
@@ -65,7 +65,6 @@ public class IfmPlayer extends ListActivity {
 	private Vibrator mVibratorService;
 	private NotificationManager mNotificationManager;
 	private Bitmap mBlanco;
-	private SharedPreferences mPreferences;
 	private ChannelViewAdapter mChannelViewAdapter;
 
 	class ChannelInfo {
@@ -131,6 +130,9 @@ public class IfmPlayer extends ListActivity {
 						}
 					} else {
 						Log.e("IFM", "NPE: coverart");
+					}
+					if (bitmap == null) {
+						bitmap = mBlanco;
 					}
 
 					ChannelInfo info = new ChannelInfo(artist, getLabel(channelInfo), bitmap);
@@ -240,11 +242,7 @@ public class IfmPlayer extends ListActivity {
 		
 		private void setChannelInfo(View channel, ChannelInfo info) {
 			try {
-				if (info.getBitmap() != null) {
-					((ImageView) channel.findViewById(R.id.cover)).setImageBitmap(info.getBitmap());
-				} else {
-					((ImageView) channel.findViewById(R.id.cover)).setImageBitmap(mBlanco);
-				}
+				((ImageView) channel.findViewById(R.id.cover)).setImageBitmap(info.getBitmap());
 				((TextView) channel.findViewById(R.id.artist)).setText(info.getArtist());
 				((TextView) channel.findViewById(R.id.label)).setText(info.getLabel());
 			} catch (Exception e) {
@@ -313,18 +311,21 @@ public class IfmPlayer extends ListActivity {
 	}
 
 	private void restoreState(Bundle savedInstanceState) {
-		mPreferences = getPreferences(MODE_PRIVATE);
+		SharedPreferences preferences = getPreferences(MODE_PRIVATE);
 		if (savedInstanceState != null) {
 			mChannelPlaying = savedInstanceState.getInt("channelPlaying", NONE);
 			mSelectedChannel = savedInstanceState.getInt("channelSelected", NONE);
 			Parcelable[] parcelableArray = savedInstanceState.getParcelableArray("channelUris");
 			if (parcelableArray != null) {
-				Log.d("IFM", "" + parcelableArray.getClass());
-				mChannelUris = (Uri[]) parcelableArray;
+				try {
+					mChannelUris = (Uri[]) parcelableArray;
+				} catch(ClassCastException e) {
+					Log.e("IFM", "We have to catch this for whatever reason");
+				}
 			}
 		} else {
-			mChannelPlaying = mPreferences.getInt("channelPlaying", NONE);
-			mSelectedChannel = mPreferences.getInt("channelSelected", NONE);
+			mChannelPlaying = preferences.getInt("channelPlaying", NONE);
+			mSelectedChannel = preferences.getInt("channelSelected", NONE);
 		}
 		mBlanco = BitmapFactory.decodeResource(getResources(), R.drawable.blanco);
 		mChannelInfos = (ChannelInfo[]) getLastNonConfigurationInstance();
@@ -344,6 +345,7 @@ public class IfmPlayer extends ListActivity {
 
 	@Override
 	protected void onSaveInstanceState(Bundle outState) {
+		super.onSaveInstanceState(outState);
 		outState.putInt("channelPlaying", mChannelPlaying);
 		outState.putInt("channelSelected", mSelectedChannel);
 		outState.putParcelableArray("channelUris", mChannelUris);
@@ -359,7 +361,7 @@ public class IfmPlayer extends ListActivity {
 	@Override
 	protected void onPause() {
 		super.onPause();
-		Editor editor = mPreferences.edit();
+		Editor editor = getPreferences(MODE_PRIVATE).edit();
 		editor.putInt("channelPlaying", mChannelPlaying);
 		editor.putInt("channelSelected", mSelectedChannel);
 		editor.commit();
