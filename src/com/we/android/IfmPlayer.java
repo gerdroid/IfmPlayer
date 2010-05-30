@@ -226,10 +226,12 @@ public class IfmPlayer extends ListActivity {
 		
 		private void updateChannelView(View channelView, int channel, ChannelInfo channelInfo) {
 			channelView.setBackgroundResource(mChannelColor[channel]);
-			
 			((TextView) channelView.findViewById(R.id.channel_name)).setText(mChannelName[channel]);
-			setChannelInfo(channelView, channelInfo);
-			PlayButton button = (PlayButton) channelView.findViewById(R.id.play);
+			updateChannelInfo(channelView, channelInfo);
+			updateButton(channel, (PlayButton) channelView.findViewById(R.id.play));
+		}
+
+		private void updateButton(int channel, PlayButton button) {
 			if (mChannelPlaying == channel) {
 				button.play();
 			} else {
@@ -240,14 +242,10 @@ public class IfmPlayer extends ListActivity {
 			button.setHapticFeedbackEnabled(true);
 		}
 		
-		private void setChannelInfo(View channel, ChannelInfo info) {
-			try {
-				((ImageView) channel.findViewById(R.id.cover)).setImageBitmap(info.getBitmap());
-				((TextView) channel.findViewById(R.id.artist)).setText(info.getArtist());
-				((TextView) channel.findViewById(R.id.label)).setText(info.getLabel());
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
+		private void updateChannelInfo(View channel, ChannelInfo info) {
+			((ImageView) channel.findViewById(R.id.cover)).setImageBitmap(info.getBitmap());
+			((TextView) channel.findViewById(R.id.artist)).setText(info.getArtist());
+			((TextView) channel.findViewById(R.id.label)).setText(info.getLabel());
 		}
 	}
 
