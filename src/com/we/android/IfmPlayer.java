@@ -26,6 +26,7 @@ import android.media.MediaPlayer;
 import android.media.MediaPlayer.OnErrorListener;
 import android.media.MediaPlayer.OnPreparedListener;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Parcelable;
@@ -47,9 +48,10 @@ public class IfmPlayer extends ListActivity {
 	private static final int CHANNEL_UPDATE_FREQUENCY = 20 * SECOND_IN_MICROSECONDS;
 	private static final int IFM_NOTIFICATION = 0;
 	private static int NUMBER_OF_CHANNELS = 4;
+	private static Uri BLACKHOLE = Uri.parse("http://radio.intergalacticfm.com");
 
 	final static MediaPlayer mMediaPlayer = new MediaPlayer();
-	private ProgressDialog mProgress;
+	private ProgressDialog mMediaPlayerProgress;
 
 	private static final int NONE = Integer.MAX_VALUE;
 	private static final int CONNECTION_TIMEOUT = 20 * SECOND_IN_MICROSECONDS;
@@ -59,9 +61,8 @@ public class IfmPlayer extends ListActivity {
 	private Timer mTimer;
 	private ChannelInfo[] mChannelInfos;
 	private Uri[] mChannelUris = new Uri[NUMBER_OF_CHANNELS];
-	private boolean mChannelUrisResolved = false;
 
-	Handler mChannelUpdateHandler = new Handler();
+	Handler mHandler = new Handler();
 	private Vibrator mVibratorService;
 	private NotificationManager mNotificationManager;
 	private Bitmap mBlanco;
@@ -136,7 +137,7 @@ public class IfmPlayer extends ListActivity {
 					}
 
 					ChannelInfo info = new ChannelInfo(artist, getLabel(channelInfo), bitmap);
-					mChannelUpdateHandler.post(new UpdateView(info, i));
+					mHandler.post(new UpdateView(info, i));
 				}
 			}
 		}
@@ -248,6 +249,83 @@ public class IfmPlayer extends ListActivity {
 			((TextView) channel.findViewById(R.id.label)).setText(info.getLabel());
 		}
 	}
+	
+	class ChannelUriResolver extends AsyncTask<Uri, Void, Uri[]> {
+		private boolean mChannelUrisResolved;
+		private Context mContext;
+		private ProgressDialog mResolverProgress;
+		
+		public ChannelUriResolver(Context context) {
+			mContext = context;
+		}
+		
+		@Override
+		protected void onPreExecute() {
+			mChannelUrisResolved = false;
+			mHandler.postDelayed(new Runnable() {
+				@Override
+				public void run() {
+					if (!mChannelUrisResolved) {
+						mResolverProgress.cancel();
+						showConnectionAlert();
+					}
+				}
+			}, CONNECTION_TIMEOUT);
+			mResolverProgress = new ProgressDialog(mContext);
+			mResolverProgress.setMessage("Connecting to Blackhole...");
+			mResolverProgress.show();
+			super.onPreExecute();
+		}
+
+		@Override
+		protected Uri[] doInBackground(Uri... uris) {
+			Uri baseUri = uris[0];
+			Uri[] channelUris = new Uri[NUMBER_OF_CHANNELS];
+			for (int i=0; i<NUMBER_OF_CHANNELS; i++) {
+				channelUris[i] = getChannelUri(baseUri, i);
+			}
+			return channelUris;
+		}
+		
+		private Uri getChannelUri(Uri baseUri, int channel) {
+			try {
+				URL url = new URL(Uri.withAppendedPath(baseUri, (channel+1) + ".m3u").toString());
+				// URL url = new URL("http://radio.intergalacticfm.com/" + (channel+1) + "aacp.m3u");
+				BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
+				String line = reader.readLine();
+				return Uri.parse(line);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			return null;
+		}
+		
+		@Override
+		protected void onPostExecute(Uri[] result) {
+			mChannelUris = result;
+			mResolverProgress.cancel();
+			mChannelUrisResolved = true;
+			super.onPostExecute(result);
+		}
+		
+		private void showConnectionAlert() {
+			AlertDialog.Builder builder = new AlertDialog.Builder(mContext);
+			builder.setMessage("Connection Problem")
+			       .setCancelable(false)
+			       .setPositiveButton("Retry", new DialogInterface.OnClickListener() {
+			           public void onClick(DialogInterface dialog, int id) {
+			        	   new ChannelUriResolver(mContext).execute(BLACKHOLE);
+			           }
+			       })
+			       .setNegativeButton("Finish", new DialogInterface.OnClickListener() {
+			           public void onClick(DialogInterface dialog, int id) {
+			                finish();
+			           }
+			       });
+			AlertDialog alert = builder.create();
+			alert.show();
+		}
+	}
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -258,8 +336,6 @@ public class IfmPlayer extends ListActivity {
 		restoreState(savedInstanceState);
 		mChannelViewAdapter = new ChannelViewAdapter();
 		setListAdapter(mChannelViewAdapter);
-		mProgress = new ProgressDialog(this);
-		requestChannelUris();
 
 		getListView().setDivider(null);
 
@@ -284,11 +360,12 @@ public class IfmPlayer extends ListActivity {
 	}
 
 	private void setupMediaPlayer() {
+		mMediaPlayerProgress = new ProgressDialog(this);
 		mMediaPlayer.setOnPreparedListener(new OnPreparedListener() {
 			@Override
 			public void onPrepared(MediaPlayer mp) {
 				Log.d("IFM", "onPrepared" + Thread.currentThread());
-				mProgress.cancel();
+				mMediaPlayerProgress.cancel();
 				mMediaPlayer.start();
 				mIsPreparing = false;
 				doNotification();
@@ -310,6 +387,7 @@ public class IfmPlayer extends ListActivity {
 
 	private void restoreState(Bundle savedInstanceState) {
 		SharedPreferences preferences = getPreferences(MODE_PRIVATE);
+		boolean channelUrisRecovered = false;
 		if (savedInstanceState != null) {
 			mChannelPlaying = savedInstanceState.getInt("channelPlaying", NONE);
 			mSelectedChannel = savedInstanceState.getInt("channelSelected", NONE);
@@ -317,6 +395,7 @@ public class IfmPlayer extends ListActivity {
 			if (parcelableArray != null) {
 				try {
 					mChannelUris = (Uri[]) parcelableArray;
+					channelUrisRecovered = true;
 				} catch(ClassCastException e) {
 					Log.e("IFM", "We have to catch this for whatever reason");
 				}
@@ -324,6 +403,9 @@ public class IfmPlayer extends ListActivity {
 		} else {
 			mChannelPlaying = preferences.getInt("channelPlaying", NONE);
 			mSelectedChannel = preferences.getInt("channelSelected", NONE);
+		}
+		if (!channelUrisRecovered) {
+			new ChannelUriResolver(this).execute(BLACKHOLE);
 		}
 		mBlanco = BitmapFactory.decodeResource(getResources(), R.drawable.blanco);
 		mChannelInfos = (ChannelInfo[]) getLastNonConfigurationInstance();
@@ -386,75 +468,6 @@ public class IfmPlayer extends ListActivity {
 		}
 	}
 
-	private void requestChannelUris() {
-		mProgress.setMessage("Connecting to Blackhole...");
-		mProgress.show();
-		Timer timer = new Timer();
-		timer.schedule(new TimerTask() {
-			@Override
-			public void run() {
-				if (!mChannelUrisResolved) {
-					mProgress.cancel();
-					runOnUiThread(new Runnable() {
-						@Override
-						public void run() {
-							showConectionAlert();
-						}
-					});
-				}
-			}
-		}, CONNECTION_TIMEOUT);
-		new Thread(new Runnable() {
-			@Override
-			public void run() {
-				for (int i=0; i<NUMBER_OF_CHANNELS; i++) {
-					if (mChannelUris[i] == null) {
-						mChannelUris[i] = getChannelUri(i);
-					}
-				}
-				mChannelUrisResolved = true;
-				runOnUiThread(new Runnable() {
-					@Override
-					public void run() {
-						mProgress.cancel();
-					}
-				});
-			}
-		}).start();
-	}
-	
-	private void showConectionAlert() {
-		AlertDialog.Builder builder = new AlertDialog.Builder(this);
-		builder.setMessage("Connection Problem")
-		       .setCancelable(false)
-		       .setPositiveButton("Retry", new DialogInterface.OnClickListener() {
-		           public void onClick(DialogInterface dialog, int id) {
-		        	   requestChannelUris();
-		           }
-		       })
-		       .setNegativeButton("Finish", new DialogInterface.OnClickListener() {
-		           public void onClick(DialogInterface dialog, int id) {
-		                finish();
-		           }
-		       });
-		AlertDialog alert = builder.create();
-		alert.show();
-	}
-	
-	private Uri getChannelUri(int channel) {
-		try {
-			URL url = new URL("http://radio.intergalacticfm.com/" + (channel+1) + ".m3u");
-			//			URL url = new URL("http://radio.intergalacticfm.com/" + (channel+1) + "aacp.m3u");
-			InputStream is = url.openStream();
-			BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-			String line = reader.readLine();
-			return Uri.parse(line);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		return null;
-	}
-	
 	public void myClickHandler(View button) {
 		mVibratorService.vibrate(80);
 		int selectedChannel = (Integer) button.getTag();
@@ -475,8 +488,8 @@ public class IfmPlayer extends ListActivity {
 		Uri channelUri = mChannelUris[selectedChannel];
 		if (channelUri != null) {
 			try {
-				mProgress.setMessage("Buffering. Please wait...");
-				mProgress.show();
+				mMediaPlayerProgress.setMessage("Buffering. Please wait...");
+				mMediaPlayerProgress.show();
 				mMediaPlayer.setDataSource(context, channelUri);
 				mIsPreparing = true;
 				Log.d("IFM", "playSelectedChannel" + Thread.currentThread());
