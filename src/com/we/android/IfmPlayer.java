@@ -36,10 +36,13 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.AdapterView.OnItemClickListener;
+import android.widget.AdapterView.OnItemSelectedListener;
 
 public class IfmPlayer extends ListActivity {
 
@@ -203,6 +206,7 @@ public class IfmPlayer extends ListActivity {
 	class ChannelViewAdapter extends BaseAdapter {
 		private final int mChannelColor[] = new int[]{R.color.ifm1, R.color.ifm2, R.color.ifm3, R.color.ifm4};
 		private final String mChannelName[] = new String[]{"Westcoast Sound of Holland", "Intergalactic Classix", "The Dream Machine", "Cybernetic Broadcasting"};
+		private static final int INVALID_SELECTION = Integer.MAX_VALUE;
 		
 		@Override
 		public int getCount() {
@@ -243,6 +247,11 @@ public class IfmPlayer extends ListActivity {
 				button.play();
 			} else {
 				button.stop();
+			}
+			if ((mSelectedChannel != INVALID_SELECTION) && (channel == mSelectedChannel)) {
+				button.select();
+			} else {
+				button.unSelect();
 			}
 			button.setBackgroundResource(mChannelColor[channel]);
 			button.setTag(new Integer(channel));
@@ -342,10 +351,30 @@ public class IfmPlayer extends ListActivity {
 		restoreState(savedInstanceState);
 		mChannelViewAdapter = new ChannelViewAdapter();
 		setListAdapter(mChannelViewAdapter);
-
+		
+		getListView().setSelection(mSelectedChannel);
 		getListView().setDivider(null);
 
 		setupMediaPlayer();
+		
+		getListView().setOnItemSelectedListener(new OnItemSelectedListener() {
+			@Override
+			public void onItemSelected(AdapterView<?> view, View child, int pos, long id) {
+				mSelectedChannel = pos;
+				mChannelViewAdapter.notifyDataSetChanged();
+			}
+
+			@Override
+			public void onNothingSelected(AdapterView<?> arg0) {
+			}
+		});
+		
+		getListView().setOnItemClickListener(new OnItemClickListener() {
+			@Override
+			public void onItemClick(AdapterView<?> arg0, View arg1, int arg2, long arg3) {
+				Log.d("IFM", "click!!!");
+			}
+		});
 		
 		mVibratorService = (Vibrator) getSystemService(VIBRATOR_SERVICE);
 		mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
@@ -366,7 +395,6 @@ public class IfmPlayer extends ListActivity {
 	}
 
 	private void setupMediaPlayer() {
-		mMediaPlayerProgress = new ProgressDialog(this);
 		mMediaPlayer.setOnPreparedListener(new OnPreparedListener() {
 			@Override
 			public void onPrepared(MediaPlayer mp) {
@@ -410,6 +438,7 @@ public class IfmPlayer extends ListActivity {
 			mChannelPlaying = preferences.getInt("channelPlaying", NONE);
 			mSelectedChannel = preferences.getInt("channelSelected", NONE);
 		}
+		getListView().setSelection(mSelectedChannel);
 		if (!channelUrisRecovered) {
 			new ChannelUriResolver(this).execute(BLACKHOLE);
 		}
@@ -486,6 +515,7 @@ public class IfmPlayer extends ListActivity {
 			mChannelPlaying = NONE;
 			stop();
 		}
+		mSelectedChannel = selectedChannel;
 		mChannelViewAdapter.notifyDataSetChanged();
 	}
 	
@@ -494,6 +524,7 @@ public class IfmPlayer extends ListActivity {
 		Uri channelUri = mChannelUris[selectedChannel];
 		if (channelUri != null) {
 			try {
+				mMediaPlayerProgress = new ProgressDialog(this);
 				mMediaPlayerProgress.setMessage("Buffering. Please wait...");
 				mMediaPlayerProgress.show();
 				mMediaPlayer.setDataSource(context, channelUri);
