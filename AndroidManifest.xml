@@ -6,7 +6,7 @@
     <application android:label="@string/app_name" android:icon="@drawable/ifm" android:debuggable="true">
         <activity android:name=".IfmPlayer"
                   android:label="@string/app_name"
-                  android:launchMode="standard">
+                  android:launchMode="singleInstance">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
