@@ -239,7 +239,7 @@ public class IfmPlayer extends ListActivity {
 			channelView.setBackgroundResource(mChannelColor[channel]);
 			((TextView) channelView.findViewById(R.id.channel_name)).setText(mChannelName[channel]);
 			updateChannelInfo(channelView, channelInfo);
-			updateButton(channel, (PlayButton) channelView.findViewById(R.id.play));
+//			updateButton(channel, (PlayButton) channelView.findViewById(R.id.play));
 		}
 
 		private void updateButton(int channel, PlayButton button) {
