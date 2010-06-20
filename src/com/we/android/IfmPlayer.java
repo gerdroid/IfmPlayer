@@ -220,7 +220,7 @@ public class IfmPlayer extends ListActivity {
 
 		@Override
 		public long getItemId(int position) {
-			return 0;
+			return position;
 		}
 
 		@Override
@@ -354,6 +354,7 @@ public class IfmPlayer extends ListActivity {
 		
 		getListView().setSelection(mSelectedChannel);
 		getListView().setDivider(null);
+		getListView().setItemsCanFocus(true);
 
 		setupMediaPlayer();
 		
