@@ -39,6 +39,7 @@ import android.view.Window;
 import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.ImageView;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.AdapterView.OnItemClickListener;
@@ -58,7 +59,7 @@ public class IfmPlayer extends ListActivity {
 
 	private static final int NONE = Integer.MAX_VALUE;
 	private static final int CONNECTION_TIMEOUT = 20 * SECOND_IN_MICROSECONDS;
-	private int mChannelPlaying;
+	private int mChannelPlaying = NONE;
 	private boolean mIsPreparing;
 	private int mSelectedChannel;
 	private Timer mTimer;
@@ -205,8 +206,7 @@ public class IfmPlayer extends ListActivity {
 
 	class ChannelViewAdapter extends BaseAdapter {
 		private final int mChannelColor[] = new int[]{R.color.ifm1, R.color.ifm2, R.color.ifm3, R.color.ifm4};
-		private final String mChannelName[] = new String[]{"Westcoast Sound of Holland", "Intergalactic Classix", "The Dream Machine", "Cybernetic Broadcasting"};
-		private static final int INVALID_SELECTION = Integer.MAX_VALUE;
+		private final String mChannelName[] = new String[]{"Murder Capital FM", "Intergalactic Classix", "The Dream Machine", "Cybernetic Broadcasting"};
 		
 		@Override
 		public int getCount() {
@@ -226,10 +226,15 @@ public class IfmPlayer extends ListActivity {
 		@Override
 		public View getView(int position, View convertView, ViewGroup parent) {
 			View channelView;
-			if (convertView == null) {
-				channelView = getLayoutInflater().inflate(R.layout.channel, parent, false);
+//			if (convertView == null) {
+//				channelView = getLayoutInflater().inflate(R.layout.channel, parent, false);
+//			} else {
+//				channelView = convertView;
+//			}
+			if (position == mSelectedChannel) {
+				channelView = getLayoutInflater().inflate(R.layout.channel_selected, parent, false);
 			} else {
-				channelView = convertView;
+				channelView = getLayoutInflater().inflate(R.layout.channel, parent, false);
 			}
 			updateChannelView(channelView, position, mChannelInfos[position]);
 			return channelView;
@@ -238,26 +243,15 @@ public class IfmPlayer extends ListActivity {
 		private void updateChannelView(View channelView, int channel, ChannelInfo channelInfo) {
 			channelView.setBackgroundResource(mChannelColor[channel]);
 			((TextView) channelView.findViewById(R.id.channel_name)).setText(mChannelName[channel]);
+			if (channel == mChannelPlaying) {
+				((ImageView) channelView.findViewById(R.id.playIndicator)).setVisibility(View.VISIBLE);
+				((ImageView) channelView.findViewById(R.id.playIndicator)).setImageResource(R.drawable.play_indicator);
+			} else {
+				((ImageView) channelView.findViewById(R.id.playIndicator)).setVisibility(View.INVISIBLE);
+			}
 			updateChannelInfo(channelView, channelInfo);
-//			updateButton(channel, (PlayButton) channelView.findViewById(R.id.play));
 		}
 
-		private void updateButton(int channel, PlayButton button) {
-			if (mChannelPlaying == channel) {
-				button.play();
-			} else {
-				button.stop();
-			}
-			if ((mSelectedChannel != INVALID_SELECTION) && (channel == mSelectedChannel)) {
-				button.select();
-			} else {
-				button.unSelect();
-			}
-			button.setBackgroundResource(mChannelColor[channel]);
-			button.setTag(new Integer(channel));
-			button.setHapticFeedbackEnabled(true);
-		}
-		
 		private void updateChannelInfo(View channel, ChannelInfo info) {
 			((ImageView) channel.findViewById(R.id.cover)).setImageBitmap(info.getBitmap());
 			((TextView) channel.findViewById(R.id.artist)).setText(info.getArtist());
@@ -355,6 +349,8 @@ public class IfmPlayer extends ListActivity {
 		getListView().setSelection(mSelectedChannel);
 		getListView().setDivider(null);
 		getListView().setItemsCanFocus(true);
+		getListView().setFocusable(true);
+		getListView().setChoiceMode(ListView.CHOICE_MODE_SINGLE);
 
 		setupMediaPlayer();
 		
@@ -363,6 +359,7 @@ public class IfmPlayer extends ListActivity {
 			public void onItemSelected(AdapterView<?> view, View child, int pos, long id) {
 				mSelectedChannel = pos;
 				mChannelViewAdapter.notifyDataSetChanged();
+				System.out.println(mSelectedChannel);
 			}
 
 			@Override
@@ -372,8 +369,19 @@ public class IfmPlayer extends ListActivity {
 		
 		getListView().setOnItemClickListener(new OnItemClickListener() {
 			@Override
-			public void onItemClick(AdapterView<?> arg0, View arg1, int arg2, long arg3) {
-				Log.d("IFM", "click!!!");
+			public void onItemClick(AdapterView<?> view, View child, int pos, long id) {
+				mVibratorService.vibrate(80);
+				if (mChannelPlaying == NONE) {
+					playSelectedChannel(getApplicationContext(), pos);
+				} else if (mChannelPlaying != pos) {
+					stop();
+					playSelectedChannel(getApplicationContext(), pos);
+				} else {
+					mChannelPlaying = NONE;
+					stop();
+				}
+				mSelectedChannel = pos;
+				mChannelViewAdapter.notifyDataSetChanged();
 			}
 		});
 		
@@ -423,22 +431,22 @@ public class IfmPlayer extends ListActivity {
 	private void restoreState(Bundle savedInstanceState) {
 		SharedPreferences preferences = getPreferences(MODE_PRIVATE);
 		boolean channelUrisRecovered = false;
-		if (savedInstanceState != null) {
-			mChannelPlaying = savedInstanceState.getInt("channelPlaying", NONE);
-			mSelectedChannel = savedInstanceState.getInt("channelSelected", NONE);
-			Parcelable[] parcelableArray = savedInstanceState.getParcelableArray("channelUris");
-			if (parcelableArray != null) {
-				try {
-					mChannelUris = (Uri[]) parcelableArray;
-					channelUrisRecovered = true;
-				} catch(ClassCastException e) {
-					Log.e("IFM", "We have to catch this for whatever reason");
-				}
-			}
-		} else {
-			mChannelPlaying = preferences.getInt("channelPlaying", NONE);
-			mSelectedChannel = preferences.getInt("channelSelected", NONE);
-		}
+//		if (savedInstanceState != null) {
+//			mChannelPlaying = savedInstanceState.getInt("channelPlaying", NONE);
+//			mSelectedChannel = savedInstanceState.getInt("channelSelected", NONE);
+//			Parcelable[] parcelableArray = savedInstanceState.getParcelableArray("channelUris");
+//			if (parcelableArray != null) {
+//				try {
+//					mChannelUris = (Uri[]) parcelableArray;
+//					channelUrisRecovered = true;
+//				} catch(ClassCastException e) {
+//					Log.e("IFM", "We have to catch this for whatever reason");
+//				}
+//			}
+//		} else {
+//			mChannelPlaying = preferences.getInt("channelPlaying", NONE);
+//			mSelectedChannel = preferences.getInt("channelSelected", NONE);
+//		}
 		getListView().setSelection(mSelectedChannel);
 		if (!channelUrisRecovered) {
 			new ChannelUriResolver(this).execute(BLACKHOLE);
@@ -504,22 +512,6 @@ public class IfmPlayer extends ListActivity {
 		}
 	}
 
-	public void myClickHandler(View button) {
-		mVibratorService.vibrate(80);
-		int selectedChannel = (Integer) button.getTag();
-		if (mChannelPlaying == NONE) {
-			playSelectedChannel(button.getContext(), selectedChannel);
-		} else if (mChannelPlaying != selectedChannel) {
-			stop();
-			playSelectedChannel(button.getContext(), selectedChannel);
-		} else {
-			mChannelPlaying = NONE;
-			stop();
-		}
-		mSelectedChannel = selectedChannel;
-		mChannelViewAdapter.notifyDataSetChanged();
-	}
-	
 	private void playSelectedChannel(Context context, int selectedChannel) {
 		mChannelPlaying = selectedChannel;
 		Uri channelUri = mChannelUris[selectedChannel];
