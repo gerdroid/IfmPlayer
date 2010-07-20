@@ -1,19 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-	android:id="@+id/channel" android:orientation="vertical"
-	android:layout_width="fill_parent" android:layout_height="wrap_content"
+	android:id="@+id/channel"
+	android:orientation="vertical"
+	android:layout_width="fill_parent"
+	android:layout_height="wrap_content"
 	android:focusable="false">
 	<LinearLayout
 		android:orientation="horizontal"
 		android:layout_width="fill_parent" 
 		android:layout_height="wrap_content">
 		<TextView android:id="@+id/channel_name" 
-			android:textSize="22dip"
+			android:textSize="24dip"
 			android:textColor="#ffffffff" 
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content" 
-			android:layout_marginLeft="3dip"/>
+			android:layout_marginLeft="5dip"/>
 		<View android:layout_width="fill_parent"
 			android:layout_height="fill_parent"
 			android:layout_weight="1"/>
@@ -23,11 +25,16 @@
 			android:layout_gravity="center"
 			android:layout_marginRight="10dip"/>	
 	</LinearLayout>
-	<View android:background="#ffffff" android:layout_width="fill_parent"
-		android:layout_height="1dip" android:gravity="center_horizontal" />
-	<LinearLayout android:id="@+id/wtf" android:orientation="horizontal"
-		android:layout_width="fill_parent" android:layout_height="wrap_content"
-		android:layout_marginTop="8dip" android:layout_marginBottom="8dip">
+	<View android:background="#ffffff"
+		android:layout_width="fill_parent"
+		android:layout_height="1dip"
+		android:gravity="center_horizontal" />
+	<LinearLayout android:id="@+id/wtf" 
+		android:orientation="horizontal"
+		android:layout_width="fill_parent"
+		android:layout_height="wrap_content"
+		android:layout_marginTop="8dip"
+		android:layout_marginBottom="8dip">
 		<ImageView android:id="@+id/cover" 
 			android:layout_width="70dip"
 			android:layout_height="70dip" 
@@ -36,18 +43,17 @@
 			android:layout_width="fill_parent" 
 			android:layout_height="fill_parent"
 			android:layout_marginLeft="10dip">
-			<TextView android:id="@+id/artist" android:textSize="14dip"
-				android:textColor="#000000" android:layout_width="fill_parent"
+			<TextView android:id="@+id/artist" 
+				android:textSize="15dip"
+				android:textColor="#000000" 
+				android:layout_width="fill_parent"
 				android:layout_height="wrap_content" />
-			<TextView android:id="@+id/label" android:textSize="10dip"
-				android:textColor="#000000" android:layout_width="fill_parent"
+			<TextView android:id="@+id/label" 
+				android:textSize="11dip"
+				android:textColor="#000000" 
+				android:layout_width="fill_parent"
 				android:layout_height="wrap_content" />
 		</LinearLayout>
 	</LinearLayout>
-	<View xmlns:android="http://schemas.android.com/apk/res/android"
-		android:background="#ffffff" 
-		android:layout_width="fill_parent"
-		android:layout_height="1dip"
-		android:gravity="center_horizontal"/>
 </LinearLayout>
 	

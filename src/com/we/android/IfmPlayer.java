@@ -36,10 +36,10 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.widget.Adapter;
 import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.ImageView;
-import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.AdapterView.OnItemClickListener;
@@ -61,16 +61,17 @@ public class IfmPlayer extends ListActivity {
 	private static final int CONNECTION_TIMEOUT = 20 * SECOND_IN_MICROSECONDS;
 	private int mChannelPlaying = NONE;
 	private boolean mIsPreparing;
-	private int mSelectedChannel;
+	private int mSelectedChannel = Adapter.NO_SELECTION;
 	private Timer mTimer;
 	private ChannelInfo[] mChannelInfos;
-	private Uri[] mChannelUris = new Uri[NUMBER_OF_CHANNELS];
+	private Uri[] mChannelUris;
 
 	Handler mHandler = new Handler();
 	private Vibrator mVibratorService;
 	private NotificationManager mNotificationManager;
 	private Bitmap mBlanco;
 	private ChannelViewAdapter mChannelViewAdapter;
+	private ChannelUriResolver mChannelUriResolver;
 
 	class ChannelInfo {
 		private String mArtist;
@@ -226,15 +227,10 @@ public class IfmPlayer extends ListActivity {
 		@Override
 		public View getView(int position, View convertView, ViewGroup parent) {
 			View channelView;
-//			if (convertView == null) {
-//				channelView = getLayoutInflater().inflate(R.layout.channel, parent, false);
-//			} else {
-//				channelView = convertView;
-//			}
-			if (position == mSelectedChannel) {
-				channelView = getLayoutInflater().inflate(R.layout.channel_selected, parent, false);
-			} else {
+			if (convertView == null) {
 				channelView = getLayoutInflater().inflate(R.layout.channel, parent, false);
+			} else {
+				channelView = convertView;
 			}
 			updateChannelView(channelView, position, mChannelInfos[position]);
 			return channelView;
@@ -274,7 +270,7 @@ public class IfmPlayer extends ListActivity {
 			mHandler.postDelayed(new Runnable() {
 				@Override
 				public void run() {
-					if (!mChannelUrisResolved) {
+					if (!mChannelUrisResolved && !isCancelled()) {
 						mResolverProgress.cancel();
 						showConnectionAlert();
 					}
@@ -317,13 +313,22 @@ public class IfmPlayer extends ListActivity {
 			super.onPostExecute(result);
 		}
 		
+		@Override
+		protected void onCancelled() {
+			
+			super.onCancelled();
+		}
+		
 		private void showConnectionAlert() {
+			if (isCancelled()) return;
+			mChannelUriResolver.cancel(true);
 			AlertDialog.Builder builder = new AlertDialog.Builder(mContext);
 			builder.setMessage("Connection Problem")
 			       .setCancelable(false)
 			       .setPositiveButton("Retry", new DialogInterface.OnClickListener() {
 			           public void onClick(DialogInterface dialog, int id) {
-			        	   new ChannelUriResolver(mContext).execute(BLACKHOLE);
+			        	   mChannelUriResolver = new ChannelUriResolver(mContext);
+			        	   mChannelUriResolver.execute(BLACKHOLE);
 			           }
 			       })
 			       .setNegativeButton("Finish", new DialogInterface.OnClickListener() {
@@ -346,11 +351,8 @@ public class IfmPlayer extends ListActivity {
 		mChannelViewAdapter = new ChannelViewAdapter();
 		setListAdapter(mChannelViewAdapter);
 		
-		getListView().setSelection(mSelectedChannel);
+//		getListView().setSelection(mSelectedChannel);
 		getListView().setDivider(null);
-		getListView().setItemsCanFocus(true);
-		getListView().setFocusable(true);
-		getListView().setChoiceMode(ListView.CHOICE_MODE_SINGLE);
 
 		setupMediaPlayer();
 		
@@ -373,14 +375,16 @@ public class IfmPlayer extends ListActivity {
 				mVibratorService.vibrate(80);
 				if (mChannelPlaying == NONE) {
 					playSelectedChannel(getApplicationContext(), pos);
+					mSelectedChannel = pos;
 				} else if (mChannelPlaying != pos) {
+					mSelectedChannel = pos;
 					stop();
 					playSelectedChannel(getApplicationContext(), pos);
 				} else {
+					mSelectedChannel = Adapter.NO_SELECTION;
 					mChannelPlaying = NONE;
 					stop();
 				}
-				mSelectedChannel = pos;
 				mChannelViewAdapter.notifyDataSetChanged();
 			}
 		});
@@ -429,27 +433,28 @@ public class IfmPlayer extends ListActivity {
 	}
 
 	private void restoreState(Bundle savedInstanceState) {
-		SharedPreferences preferences = getPreferences(MODE_PRIVATE);
 		boolean channelUrisRecovered = false;
-//		if (savedInstanceState != null) {
-//			mChannelPlaying = savedInstanceState.getInt("channelPlaying", NONE);
-//			mSelectedChannel = savedInstanceState.getInt("channelSelected", NONE);
-//			Parcelable[] parcelableArray = savedInstanceState.getParcelableArray("channelUris");
-//			if (parcelableArray != null) {
-//				try {
-//					mChannelUris = (Uri[]) parcelableArray;
-//					channelUrisRecovered = true;
-//				} catch(ClassCastException e) {
-//					Log.e("IFM", "We have to catch this for whatever reason");
-//				}
-//			}
-//		} else {
-//			mChannelPlaying = preferences.getInt("channelPlaying", NONE);
-//			mSelectedChannel = preferences.getInt("channelSelected", NONE);
-//		}
+		if (savedInstanceState != null) {
+			mChannelPlaying = savedInstanceState.getInt("channelPlaying", NONE);
+			mSelectedChannel = savedInstanceState.getInt("channelSelected", NONE);
+			Parcelable[] parcelableArray = savedInstanceState.getParcelableArray("channelUris");
+			if (parcelableArray != null) {
+				try {
+					mChannelUris = (Uri[]) parcelableArray;
+					channelUrisRecovered = true;
+				} catch(ClassCastException e) {
+					Log.e("IFM", "We have to catch this for whatever reason");
+				}
+			}
+		} else {
+			SharedPreferences preferences = getPreferences(MODE_PRIVATE);
+			mChannelPlaying = preferences.getInt("channelPlaying", NONE);
+			mSelectedChannel = preferences.getInt("channelSelected", NONE);
+		}
 		getListView().setSelection(mSelectedChannel);
 		if (!channelUrisRecovered) {
-			new ChannelUriResolver(this).execute(BLACKHOLE);
+			mChannelUriResolver = new ChannelUriResolver(this);
+			mChannelUriResolver.execute(BLACKHOLE);
 		}
 		mBlanco = BitmapFactory.decodeResource(getResources(), R.drawable.blanco);
 		mChannelInfos = (ChannelInfo[]) getLastNonConfigurationInstance();
@@ -472,24 +477,29 @@ public class IfmPlayer extends ListActivity {
 		super.onSaveInstanceState(outState);
 		outState.putInt("channelPlaying", mChannelPlaying);
 		outState.putInt("channelSelected", mSelectedChannel);
-		outState.putParcelableArray("channelUris", mChannelUris);
+		if (mChannelUris != null) {
+			outState.putParcelableArray("channelUris", mChannelUris);
+		}
 	}
 
 	@Override
 	protected void onDestroy() {
-		super.onDestroy();
+		if (mChannelUriResolver != null) {
+			mChannelUriResolver.cancel(true);
+		}
 		mNotificationManager.cancel(IFM_NOTIFICATION);
 		mTimer.cancel();
+		super.onDestroy();
 	}
 
 	@Override
 	protected void onPause() {
-		super.onPause();
 		Editor editor = getPreferences(MODE_PRIVATE).edit();
 		editor.putInt("channelPlaying", mChannelPlaying);
 		editor.putInt("channelSelected", mSelectedChannel);
 		editor.commit();
 		mTimer.cancel();
+		super.onPause();
 	}
 
 	@Override
@@ -520,9 +530,9 @@ public class IfmPlayer extends ListActivity {
 				mMediaPlayerProgress = new ProgressDialog(this);
 				mMediaPlayerProgress.setMessage("Buffering. Please wait...");
 				mMediaPlayerProgress.show();
+				mMediaPlayer.reset();
 				mMediaPlayer.setDataSource(context, channelUri);
 				mIsPreparing = true;
-				Log.d("IFM", "playSelectedChannel" + Thread.currentThread());
 				mMediaPlayer.prepareAsync();
 			} catch (Exception e) {
 				showConnectionProblem(context);
@@ -540,7 +550,7 @@ public class IfmPlayer extends ListActivity {
 
 	private void stop() {
 		mMediaPlayer.stop();
-		mMediaPlayer.reset();
+//		mMediaPlayer.reset();
 		mNotificationManager.cancel(IFM_NOTIFICATION);
 	}
 }
