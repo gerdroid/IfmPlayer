@@ -313,12 +313,6 @@ public class IfmPlayer extends ListActivity {
 			super.onPostExecute(result);
 		}
 		
-		@Override
-		protected void onCancelled() {
-			
-			super.onCancelled();
-		}
-		
 		private void showConnectionAlert() {
 			if (isCancelled()) return;
 			mChannelUriResolver.cancel(true);
@@ -351,10 +345,22 @@ public class IfmPlayer extends ListActivity {
 		mChannelViewAdapter = new ChannelViewAdapter();
 		setListAdapter(mChannelViewAdapter);
 		
+		Log.d("IFM", "playing: " + mChannelPlaying);
+		Log.d("IFM", "preparing: " + mIsPreparing);
+		if (mIsPreparing) {
+			mMediaPlayerProgress = new ProgressDialog(this);
+			mMediaPlayerProgress.setMessage("Buffering. Please wait...");
+			mMediaPlayerProgress.show();
+		}
+		
 //		getListView().setSelection(mSelectedChannel);
 		getListView().setDivider(null);
 
 		setupMediaPlayer();
+		
+//		if (!mMediaPlayer.isPlaying() && !mIsPreparing) {
+//			mChannelPlaying = NONE;
+//		}
 		
 		getListView().setOnItemSelectedListener(new OnItemSelectedListener() {
 			@Override
@@ -411,10 +417,16 @@ public class IfmPlayer extends ListActivity {
 		mMediaPlayer.setOnPreparedListener(new OnPreparedListener() {
 			@Override
 			public void onPrepared(MediaPlayer mp) {
-				Log.d("IFM", "onPrepared" + Thread.currentThread());
-				mMediaPlayerProgress.cancel();
+				runOnUiThread(new Runnable() {
+					@Override
+					public void run() {
+						mIsPreparing = false;
+						if (mMediaPlayerProgress != null) {
+							mMediaPlayerProgress.cancel();
+						}
+					}
+				});
 				mMediaPlayer.start();
-				mIsPreparing = false;
 				doNotification();
 			}
 		});
@@ -435,6 +447,7 @@ public class IfmPlayer extends ListActivity {
 	private void restoreState(Bundle savedInstanceState) {
 		boolean channelUrisRecovered = false;
 		if (savedInstanceState != null) {
+			mIsPreparing = savedInstanceState.getBoolean("isPreparing", false);
 			mChannelPlaying = savedInstanceState.getInt("channelPlaying", NONE);
 			mSelectedChannel = savedInstanceState.getInt("channelSelected", NONE);
 			Parcelable[] parcelableArray = savedInstanceState.getParcelableArray("channelUris");
@@ -448,6 +461,7 @@ public class IfmPlayer extends ListActivity {
 			}
 		} else {
 			SharedPreferences preferences = getPreferences(MODE_PRIVATE);
+			mIsPreparing = preferences.getBoolean("isPreparing", false);
 			mChannelPlaying = preferences.getInt("channelPlaying", NONE);
 			mSelectedChannel = preferences.getInt("channelSelected", NONE);
 		}
@@ -475,6 +489,7 @@ public class IfmPlayer extends ListActivity {
 	@Override
 	protected void onSaveInstanceState(Bundle outState) {
 		super.onSaveInstanceState(outState);
+		outState.putBoolean("isPreparing", mIsPreparing);
 		outState.putInt("channelPlaying", mChannelPlaying);
 		outState.putInt("channelSelected", mSelectedChannel);
 		if (mChannelUris != null) {
@@ -495,6 +510,7 @@ public class IfmPlayer extends ListActivity {
 	@Override
 	protected void onPause() {
 		Editor editor = getPreferences(MODE_PRIVATE).edit();
+		editor.putBoolean("isPreparing", mIsPreparing);
 		editor.putInt("channelPlaying", mChannelPlaying);
 		editor.putInt("channelSelected", mSelectedChannel);
 		editor.commit();
@@ -522,18 +538,30 @@ public class IfmPlayer extends ListActivity {
 		}
 	}
 
-	private void playSelectedChannel(Context context, int selectedChannel) {
+	private void playSelectedChannel(final Context context, int selectedChannel) {
 		mChannelPlaying = selectedChannel;
-		Uri channelUri = mChannelUris[selectedChannel];
+		final Uri channelUri = mChannelUris[selectedChannel];
 		if (channelUri != null) {
 			try {
 				mMediaPlayerProgress = new ProgressDialog(this);
 				mMediaPlayerProgress.setMessage("Buffering. Please wait...");
 				mMediaPlayerProgress.show();
-				mMediaPlayer.reset();
-				mMediaPlayer.setDataSource(context, channelUri);
 				mIsPreparing = true;
-				mMediaPlayer.prepareAsync();
+				new AsyncTask<Void, Void, Void>() {
+					@Override
+					protected Void doInBackground(Void... params) {
+						mMediaPlayer.reset();
+						try {
+							mMediaPlayer.setDataSource(context, channelUri);
+							mMediaPlayer.prepareAsync();
+						} catch (Exception e) {
+							mIsPreparing = false;
+							e.printStackTrace();
+						}
+						return null;
+					}
+					
+				}.execute();
 			} catch (Exception e) {
 				showConnectionProblem(context);
 				e.printStackTrace();
