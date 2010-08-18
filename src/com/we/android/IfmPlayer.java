@@ -447,6 +447,7 @@ public class IfmPlayer extends ListActivity {
 	private void restoreState(Bundle savedInstanceState) {
 		boolean channelUrisRecovered = false;
 		if (savedInstanceState != null) {
+			Log.i("IFM", "from bundle");
 			mIsPreparing = savedInstanceState.getBoolean("isPreparing", false);
 			mChannelPlaying = savedInstanceState.getInt("channelPlaying", NONE);
 			mSelectedChannel = savedInstanceState.getInt("channelSelected", NONE);
@@ -460,6 +461,7 @@ public class IfmPlayer extends ListActivity {
 				}
 			}
 		} else {
+			Log.i("IFM", "from preference");
 			SharedPreferences preferences = getPreferences(MODE_PRIVATE);
 			mIsPreparing = preferences.getBoolean("isPreparing", false);
 			mChannelPlaying = preferences.getInt("channelPlaying", NONE);
@@ -515,6 +517,9 @@ public class IfmPlayer extends ListActivity {
 		editor.putInt("channelSelected", mSelectedChannel);
 		editor.commit();
 		mTimer.cancel();
+		if (!mMediaPlayer.isPlaying()) {
+			mMediaPlayer.reset();
+		}
 		super.onPause();
 	}
 
@@ -578,7 +583,6 @@ public class IfmPlayer extends ListActivity {
 
 	private void stop() {
 		mMediaPlayer.stop();
-//		mMediaPlayer.reset();
 		mNotificationManager.cancel(IFM_NOTIFICATION);
 	}
 }
