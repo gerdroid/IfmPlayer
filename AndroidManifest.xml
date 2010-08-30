@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
       package="com.we.android.ifm"
-      android:versionCode="1"
-      android:versionName="1.0">
+      android:versionCode="1" android:versionName="0.1">
     <application android:label="@string/app_name" android:icon="@drawable/ifm" android:debuggable="false">
         <activity android:name=".IfmPlayer"
                   android:label="@string/app_name"
@@ -18,13 +17,8 @@
         		<action android:name="com.we.android.ifm.IPlayer"/>
         	</intent-filter>
         </service>
-		<!--  <receiver android:name=".ServiceReceiver">
-			<intent-filter>
-				<action android:name="android.intent.action.PHONE_STATE" />
-		    </intent-filter>
-		</receiver>-->
     </application>
-    <uses-sdk android:minSdkVersion="4" />
+    <uses-sdk android:minSdkVersion="7" />
 
 <uses-permission android:name="android.permission.INTERNET"/>
 <uses-permission android:name="android.permission.VIBRATE"/>
