@@ -1,21 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-      package="com.we.android"
+      package="com.we.android.ifm"
       android:versionCode="1"
       android:versionName="1.0">
-    <application android:label="@string/app_name" android:icon="@drawable/ifm" android:debuggable="true">
+    <application android:label="@string/app_name" android:icon="@drawable/ifm" android:debuggable="false">
         <activity android:name=".IfmPlayer"
                   android:label="@string/app_name"
-                  android:launchMode="singleInstance">
+                  android:launchMode="singleInstance"
+                  android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
+        <service android:name=".IfmService">
+        	<intent-filter>
+        		<action android:name="com.we.android.ifm.IPlayer"/>
+        	</intent-filter>
+        </service>
+		<!--  <receiver android:name=".ServiceReceiver">
+			<intent-filter>
+				<action android:name="android.intent.action.PHONE_STATE" />
+		    </intent-filter>
+		</receiver>-->
     </application>
     <uses-sdk android:minSdkVersion="4" />
 
 <uses-permission android:name="android.permission.INTERNET"/>
-<uses-permission android:name="android.permission.VIBRATE" />
+<uses-permission android:name="android.permission.VIBRATE"/>
+<uses-permission android:name="android.permission.READ_PHONE_STATE"/>
 </manifest> 
