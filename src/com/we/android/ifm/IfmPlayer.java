@@ -427,9 +427,9 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     if (channelPlaying != NONE) {
       Intent intent = new Intent(this, IfmPlayer.class);
       intent.setAction(Intent.ACTION_VIEW);
-      Notification notification = new Notification(R.drawable.ifm, "", System.currentTimeMillis());
-      notification.flags |= Notification.FLAG_NO_CLEAR;
       String artist = mChannelInfos[channelPlaying].getArtist();
+      Notification notification = new Notification(R.drawable.ifm, "Playing "+artist, System.currentTimeMillis());
+      notification.flags |= Notification.FLAG_NO_CLEAR;
       notification.setLatestEventInfo(IfmPlayer.this, "IFM Player","playing " + artist, 
           PendingIntent.getActivity(this.getBaseContext(), 0, intent, PendingIntent.FLAG_CANCEL_CURRENT));
       mNotificationManager.notify(IFM_NOTIFICATION, notification);
