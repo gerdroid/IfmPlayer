@@ -14,7 +14,7 @@
         </activity>
         <service android:name=".IfmService">
         	<intent-filter>
-        		<action android:name="com.we.android.ifm.IPlayer"/>
+        		<action android:name="com.we.android.ifm.IfmService"/>
         	</intent-filter>
         </service>
     </application>

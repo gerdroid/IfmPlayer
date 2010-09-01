@@ -57,12 +57,12 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   private Timer mTimer;
   private ChannelInfo[] mChannelInfos;
 
-  Handler mHandler = new Handler();
+  private Handler mHandler = new Handler();
   private Vibrator mVibratorService;
   private NotificationManager mNotificationManager;
   private Bitmap mBlanco;
   private ChannelViewAdapter mChannelViewAdapter;
-  private IPlayer mPlayer;
+  private IfmService mPlayer;
 
   class ChannelInfo {
     private String mArtist;
@@ -157,7 +157,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
         if (line == null) {
           line = "";
         }
-//        Log.d("IFM", "blackhole response: " + line);
+        Log.d("IFM", "blackhole response: " + line);
         return line;
       } catch (Exception e) {
         e.printStackTrace();
@@ -216,10 +216,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
       notifyDataSetChanged();
     }
 
-    public void setChannelSelected(int channel) {
-
-    }
-
     @Override
     public int getCount() {
       return NUMBER_OF_CHANNELS;
@@ -266,9 +262,9 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     }
   }
 
-  IPlayerStateListener.Stub mPlayerStateListener = new IPlayerStateListener.Stub() {
+  IPlayerStateListener mPlayerStateListener = new IPlayerStateListener() {
     @Override
-    public void onChannelStarted(final int channel) throws RemoteException {
+    public void onChannelStarted(final int channel) {
       if (mMediaPlayerProgress != null) {
         runOnUiThread(new Runnable() {
           @Override
@@ -282,7 +278,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     }
 
     @Override
-    public void onChannelError() throws RemoteException {
+    public void onChannelError() {
       if (mMediaPlayerProgress != null) {
         runOnUiThread(new Runnable() {
           @Override
@@ -305,8 +301,8 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     mChannelViewAdapter = new ChannelViewAdapter();
     setListAdapter(mChannelViewAdapter);
 
-    startService(new Intent(IPlayer.class.getName()));
-    bindService(new Intent(IPlayer.class.getName()), this, Context.BIND_AUTO_CREATE);
+    startService(new Intent(IfmService.class.getName()));
+    bindService(new Intent(IfmService.class.getName()), this, Context.BIND_AUTO_CREATE);
 
     //		getListView().setSelection(mSelectedChannel);
     getListView().setDivider(null);
@@ -417,11 +413,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   private void doNotification() {
     int channelPlaying = NONE;
     if (mPlayer != null) {
-      try {
-        channelPlaying = mPlayer.getPlayingChannel();
-      } catch (RemoteException e) {
-        e.printStackTrace();
-      }
+      channelPlaying = mPlayer.getPlayingChannel();
     }
     if (channelPlaying != NONE) {
       Intent intent = new Intent(this, IfmPlayer.class);
@@ -450,12 +442,8 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     mMediaPlayerProgress.setOnCancelListener(new OnCancelListener() {
       @Override
       public void onCancel(DialogInterface dialog) {
-        try {
-          if (mPlayer != null) {
-            mPlayer.cancel();
-          }
-        } catch (RemoteException e) {
-          e.printStackTrace();
+        if (mPlayer != null) {
+          mPlayer.cancel();
         }
       }
     });
@@ -464,17 +452,13 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
   @Override
   public void onServiceConnected(ComponentName name, IBinder service) {
-    mPlayer = IPlayer.Stub.asInterface(service);
-    try {
-      mPlayer.registerStateListener(mPlayerStateListener);
-      if (mPlayer.isPreparing()) {
-        showProgress();
-      }
-      if (mPlayer.isPlaying()) {
-        mChannelViewAdapter.setChannelPlaying(mPlayer.getPlayingChannel());
-      }
-    } catch (RemoteException e) {
-      e.printStackTrace();
+    mPlayer = ((IfmService.LocalBinder) service).getService();
+    mPlayer.registerStateListener(mPlayerStateListener);
+    if (mPlayer.isPreparing()) {
+      showProgress();
+    }
+    if (mPlayer.isPlaying()) {
+      mChannelViewAdapter.setChannelPlaying(mPlayer.getPlayingChannel());
     }
   }
 

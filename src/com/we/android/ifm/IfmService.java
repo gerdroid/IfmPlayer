@@ -13,12 +13,12 @@ import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.MediaPlayer.OnErrorListener;
 import android.net.Uri;
+import android.os.Binder;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
-import android.os.RemoteException;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.util.Log;
@@ -37,8 +37,15 @@ public class IfmService extends Service {
   private Handler mHandler;
 
   private PhoneStateReceiver mPhoneStateReceiver;
-
   private IPlayerStateListener mStateListener;
+
+  class LocalBinder extends Binder {
+    public IfmService getService() {
+      return IfmService.this;
+    }
+  }
+
+  private LocalBinder mBinder = new LocalBinder();
 
   private enum PlayerState { IDLE, PREPARING, PREPARED, RUNNING };
   private PlayerState mState;
@@ -86,12 +93,8 @@ public class IfmService extends Service {
       } else if (requestedState == PlayerState.RUNNING) {
         if (mState == PlayerState.PREPARED) {
           mMediaPlayer.start();
-          try {
-            if (mStateListener != null) {
-              mStateListener.onChannelStarted(mChannelPlaying);
-            }
-          } catch (RemoteException e) {
-            e.printStackTrace();
+          if (mStateListener != null) {
+            mStateListener.onChannelStarted(mChannelPlaying);
           }
         } else {
           Log.d("IFM", "throw away: " + requestedState);
@@ -159,56 +162,45 @@ public class IfmService extends Service {
     }
   }
 
-  private final IPlayer.Stub mBinder = new IPlayer.Stub() {
+  public int getPlayingChannel() {
+    return mChannelPlaying;
+  }
 
-    @Override
-    public int getPlayingChannel() throws RemoteException {
-      return mChannelPlaying;
-    }
+  public boolean isPlaying() {
+    return (mChannelPlaying != NONE);
+  }
 
-    @Override
-    public boolean isPlaying() throws RemoteException {
-      return (mChannelPlaying != NONE);
-    }
-
-    @Override
-    public void stop() throws RemoteException {
-      if (mChannelPlaying != NONE) {
-        mChannelPlaying = NONE;
-        Log.d("IFM", "stop");
-        requestState(PlayerState.IDLE);
-      }
-    }
-
-    @Override
-    public void cancel() throws RemoteException {
+  public void stop() {
+    if (mChannelPlaying != NONE) {
       mChannelPlaying = NONE;
-      Log.d("IFM", "cancel");
+      Log.d("IFM", "stop");
       requestState(PlayerState.IDLE);
     }
+  }
 
-    @Override
-    public void play(final int channel) throws RemoteException {
-      Log.d("IFM", "play: " + channel);
-      mChannelPlaying = channel;
-      requestState(PlayerState.PREPARING);
-    }
-    
-    
-    private void requestState(PlayerState state) {
-      mHandler.sendEmptyMessage(state.ordinal());
-    }
+  public void cancel() {
+    mChannelPlaying = NONE;
+    Log.d("IFM", "cancel");
+    requestState(PlayerState.IDLE);
+  }
 
-    @Override
-    public boolean isPreparing() throws RemoteException {
-      return (mState == PlayerState.PREPARING) || (mState == PlayerState.PREPARED);
-    }
+  public void play(final int channel) {
+    Log.d("IFM", "play: " + channel);
+    mChannelPlaying = channel;
+    requestState(PlayerState.PREPARING);
+  }
 
-    @Override
-    public void registerStateListener(IPlayerStateListener stateListener) throws RemoteException {
-      mStateListener = stateListener;
-    }
-  };
+  private void requestState(PlayerState state) {
+    mHandler.sendEmptyMessage(state.ordinal());
+  }
+
+  public boolean isPreparing() {
+    return (mState == PlayerState.PREPARING) || (mState == PlayerState.PREPARED);
+  }
+
+  public void registerStateListener(IPlayerStateListener stateListener) {
+    mStateListener = stateListener;
+  }
 
   public IfmService() {
     HandlerThread handlerThread = new HandlerThread("IFMServiceWorker");
@@ -227,20 +219,17 @@ public class IfmService extends Service {
         e.printStackTrace();
       }
     } else {
-      try {
-        if (mStateListener != null) {
-          mStateListener.onChannelError();
-        }
-      } catch (RemoteException e) {
-        e.printStackTrace();
+      if (mStateListener != null) {
+        mStateListener.onChannelError();
       }
     }
   }
-  
+
   private Uri getChannelUri(Uri baseUri, int channel) {
     try {
-      URL url = new URL(Uri.withAppendedPath(baseUri, (channel+1) + ".m3u").toString());
-      // URL url = new URL("http://radio.intergalacticfm.com/" + (channel+1) + "aacp.m3u");
+      //      URL url = new URL(Uri.withAppendedPath(baseUri, (channel+1) + ".m3u").toString());
+//      http://radio.intergalacticfm.com/1aac.m3u
+      URL url = new URL("http://radio.intergalacticfm.com/" + (channel+1) + "aac.m3u");
       BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
       String line = reader.readLine();
       return Uri.parse(line);
