@@ -227,9 +227,7 @@ public class IfmService extends Service {
 
   private Uri getChannelUri(Uri baseUri, int channel) {
     try {
-      //      URL url = new URL(Uri.withAppendedPath(baseUri, (channel+1) + ".m3u").toString());
-//      http://radio.intergalacticfm.com/1aac.m3u
-      URL url = new URL("http://radio.intergalacticfm.com/" + (channel+1) + "aac.m3u");
+      URL url = new URL(Uri.withAppendedPath(baseUri, (channel+1) + ".m3u").toString());
       BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
       String line = reader.readLine();
       return Uri.parse(line);
