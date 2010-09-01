@@ -17,6 +17,8 @@ import android.net.Uri;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
+import android.os.Looper;
+import android.os.Message;
 import android.os.RemoteException;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
@@ -39,7 +41,37 @@ public class IfmService extends Service {
   private PhoneStateReceiver mPhoneStateReceiver;
 
   private IPlayerStateListener mStateListener;
-  
+
+  private enum PlayerState { IDLE, PREPARED, RUNNING };
+  class AsyncStateHandler extends Handler {
+    private PlayerState mState;
+
+    public AsyncStateHandler(Looper looper) {
+      super(looper);
+      mState = PlayerState.IDLE;
+    }
+    
+    private void setState(PlayerState state) {
+      if (state == PlayerState.IDLE) {
+        if (mState == PlayerState.PREPARED) {
+          mMediaPlayer.reset();
+        }
+      }
+    }
+
+    @Override
+    public void handleMessage(Message msg) {
+      if (msg.what == PlayerState.IDLE.ordinal()) {
+        setState(PlayerState.IDLE);
+      } else if (msg.what == PlayerState.PREPARED.ordinal()) {
+        setState(PlayerState.PREPARED);
+      } else {
+        setState(PlayerState.RUNNING);
+      }
+      super.handleMessage(msg);
+    }
+  }
+
   class MyPhoneStateListener extends PhoneStateListener {
     private AudioManager mAudioManager;
 
@@ -175,11 +207,11 @@ public class IfmService extends Service {
       mStateListener = stateListener;
     }
   };
-  
+
   public IfmService() {
     HandlerThread handlerThread = new HandlerThread("IFMServiceWorker");
     handlerThread.start();
-    mHandler = new Handler(handlerThread.getLooper());
+    mHandler = new AsyncStateHandler(handlerThread.getLooper());
   }
 
   @Override
@@ -191,23 +223,23 @@ public class IfmService extends Service {
     mChannelUris = new Uri[NUMBER_OF_CHANNELS];
     super.onCreate();
   }
-  
+
   @Override
   public int onStartCommand(Intent intent, int flags, int startId) {
     return START_STICKY;
   }
-  
+
   @Override
   public void onDestroy() {
     unregisterReceiver(mPhoneStateReceiver);
     super.onDestroy();
   }
-  
+
   @Override
   public IBinder onBind(Intent intent) {
     return mBinder;
   }
-  
+
   @Override
   public boolean onUnbind(Intent intent) {
     mStateListener = null;
