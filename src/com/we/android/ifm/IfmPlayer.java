@@ -157,7 +157,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
         if (line == null) {
           line = "";
         }
-        Log.d("IFM", "blackhole response: " + line);
+//        Log.d("IFM", "blackhole response: " + line);
         return line;
       } catch (Exception e) {
         e.printStackTrace();
@@ -327,7 +327,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
       @Override
       public void onItemClick(AdapterView<?> view, View child, int pos, long id) {
         mVibratorService.vibrate(80);
-        Log.d("IFM", "thread im activity: " + Thread.currentThread());
         try {
           if ((mPlayer != null) && mPlayer.isPlaying()) {
             if (mPlayer.getPlayingChannel() == pos) {
@@ -452,7 +451,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
       @Override
       public void onCancel(DialogInterface dialog) {
         try {
-          if ((mPlayer != null) && mPlayer.isPreparing()) {
+          if (mPlayer != null) {
             mPlayer.cancel();
           }
         } catch (RemoteException e) {

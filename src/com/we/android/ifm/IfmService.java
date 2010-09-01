@@ -12,11 +12,12 @@ import android.content.IntentFilter;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.MediaPlayer.OnErrorListener;
-import android.media.MediaPlayer.OnPreparedListener;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
+import android.os.Looper;
+import android.os.Message;
 import android.os.RemoteException;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
@@ -32,14 +33,90 @@ public class IfmService extends Service {
 
   private static final int NONE = Integer.MAX_VALUE;
   private int mChannelPlaying = NONE; 
-  private int mChannelPreparing = NONE;
 
   private Handler mHandler;
 
   private PhoneStateReceiver mPhoneStateReceiver;
 
   private IPlayerStateListener mStateListener;
-  
+
+  private enum PlayerState { IDLE, PREPARING, PREPARED, RUNNING };
+  private PlayerState mState;
+  class AsyncStateHandler extends Handler {
+
+    public AsyncStateHandler(Looper looper) {
+      super(looper);
+      mState = PlayerState.IDLE;
+    }
+
+    private void setState(PlayerState requestedState) {
+      if (requestedState == PlayerState.IDLE) {
+        if (mState == PlayerState.PREPARING) {
+          // nothing todo
+        } else if (mState == PlayerState.PREPARED) {
+          mMediaPlayer.reset();
+        } else if (mState == PlayerState.RUNNING) {
+          mMediaPlayer.stop();
+          mMediaPlayer.reset();
+        } else  {
+          Log.d("IFM", "throw away: " + requestedState);
+          return;
+        }
+      } else if (requestedState == PlayerState.PREPARING) {
+        if (mState == PlayerState.IDLE) {
+          mHandler.sendEmptyMessage(PlayerState.PREPARED.ordinal());
+        } else {
+          Log.d("IFM", "throw away: " + requestedState);
+          return;
+        }
+      } else if (requestedState == PlayerState.PREPARED) {
+        if (mState == PlayerState.PREPARING) {
+          try {
+            doPreparation();
+            mMediaPlayer.prepare();
+            mHandler.sendEmptyMessage(PlayerState.RUNNING.ordinal());
+          } catch (Exception e) {
+            mHandler.sendEmptyMessage(PlayerState.IDLE.ordinal());
+            e.printStackTrace();
+          }
+        } else {
+          Log.d("IFM", "throw away: " + requestedState);
+          return;
+        }
+      } else if (requestedState == PlayerState.RUNNING) {
+        if (mState == PlayerState.PREPARED) {
+          mMediaPlayer.start();
+          try {
+            if (mStateListener != null) {
+              mStateListener.onChannelStarted(mChannelPlaying);
+            }
+          } catch (RemoteException e) {
+            e.printStackTrace();
+          }
+        } else {
+          Log.d("IFM", "throw away: " + requestedState);
+          return;
+        }
+      }
+      Log.d("IFM", "from: " + mState + " to: " + requestedState);
+      mState = requestedState;
+    }
+
+    @Override
+    public void handleMessage(Message msg) {
+      if (msg.what == PlayerState.IDLE.ordinal()) {
+        setState(PlayerState.IDLE);
+      } else if (msg.what == PlayerState.PREPARING.ordinal()) {
+        setState(PlayerState.PREPARING);
+      } else if (msg.what == PlayerState.PREPARED.ordinal()) {
+        setState(PlayerState.PREPARED);
+      } else {
+        setState(PlayerState.RUNNING);
+      }
+      super.handleMessage(msg);
+    }
+  }
+
   class MyPhoneStateListener extends PhoneStateListener {
     private AudioManager mAudioManager;
 
@@ -54,9 +131,14 @@ public class IfmService extends Service {
         Log.d("IFM", "IDLE");
         break;
       case TelephonyManager.CALL_STATE_RINGING:
-        if((mChannelPlaying != NONE) || (mChannelPreparing != NONE)) {
-          mAudioManager.setStreamMute(AudioManager.STREAM_MUSIC, true);
-        }
+        mHandler.post(new Runnable() {
+          @Override
+          public void run() {
+            if(mState != PlayerState.IDLE) {
+              mAudioManager.setStreamMute(AudioManager.STREAM_MUSIC, true);
+            }
+          }
+        });
         Log.d("IFM", "RINGING");
         break;
       }
@@ -77,41 +159,6 @@ public class IfmService extends Service {
     }
   }
 
-  private void prepareChannel(int channel) {
-    if (mChannelUris[channel] == null) {
-      mChannelUris[channel] = getChannelUri(BLACKHOLE, channel); 
-    }
-    if (mChannelUris[channel] != null) {
-      try {
-        mMediaPlayer.setDataSource(getBaseContext(), mChannelUris[channel]);
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-      mMediaPlayer.prepareAsync();
-    } else {
-      try {
-        if (mStateListener != null) {
-          mStateListener.onChannelError();
-        }
-      } catch (RemoteException e) {
-        e.printStackTrace();
-      }
-    }
-  }
-
-  private Uri getChannelUri(Uri baseUri, int channel) {
-    try {
-      URL url = new URL(Uri.withAppendedPath(baseUri, (channel+1) + ".m3u").toString());
-      // URL url = new URL("http://radio.intergalacticfm.com/" + (channel+1) + "aacp.m3u");
-      BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
-      String line = reader.readLine();
-      return Uri.parse(line);
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    return null;
-  }
-
   private final IPlayer.Stub mBinder = new IPlayer.Stub() {
 
     @Override
@@ -128,46 +175,33 @@ public class IfmService extends Service {
     public void stop() throws RemoteException {
       if (mChannelPlaying != NONE) {
         mChannelPlaying = NONE;
-        mHandler.post(new Runnable() {
-          @Override
-          public void run() {
-            mMediaPlayer.stop();
-            mMediaPlayer.reset();
-          }
-        });
+        Log.d("IFM", "stop");
+        requestState(PlayerState.IDLE);
       }
     }
 
     @Override
     public void cancel() throws RemoteException {
-      if (mChannelPreparing != NONE) {
-        mChannelPreparing = NONE;
-        mHandler.post(new Runnable() {
-          @Override
-          public void run() {
-            mMediaPlayer.reset();
-          }
-        });
-      }
+      mChannelPlaying = NONE;
+      Log.d("IFM", "cancel");
+      requestState(PlayerState.IDLE);
     }
 
     @Override
     public void play(final int channel) throws RemoteException {
-      if ((mChannelPreparing == NONE)  && (mChannelPlaying == NONE)) {
-        mChannelPreparing = channel;
-        mHandler.post(new Runnable() {
-          @Override
-          public void run() {
-            Log.d("IFM", "thread im service: " + Thread.currentThread());
-            prepareChannel(channel);
-          }
-        });
-      }
+      Log.d("IFM", "play: " + channel);
+      mChannelPlaying = channel;
+      requestState(PlayerState.PREPARING);
+    }
+    
+    
+    private void requestState(PlayerState state) {
+      mHandler.sendEmptyMessage(state.ordinal());
     }
 
     @Override
     public boolean isPreparing() throws RemoteException {
-      return (mChannelPreparing != NONE);
+      return (mState == PlayerState.PREPARING) || (mState == PlayerState.PREPARED);
     }
 
     @Override
@@ -175,11 +209,45 @@ public class IfmService extends Service {
       mStateListener = stateListener;
     }
   };
-  
+
   public IfmService() {
     HandlerThread handlerThread = new HandlerThread("IFMServiceWorker");
     handlerThread.start();
-    mHandler = new Handler(handlerThread.getLooper());
+    mHandler = new AsyncStateHandler(handlerThread.getLooper());
+  }
+
+  private void doPreparation() {
+    if (mChannelUris[mChannelPlaying] == null) {
+      mChannelUris[mChannelPlaying] = getChannelUri(BLACKHOLE, mChannelPlaying); 
+    }
+    if (mChannelUris[mChannelPlaying] != null) {
+      try {
+        mMediaPlayer.setDataSource(getBaseContext(), mChannelUris[mChannelPlaying]);
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    } else {
+      try {
+        if (mStateListener != null) {
+          mStateListener.onChannelError();
+        }
+      } catch (RemoteException e) {
+        e.printStackTrace();
+      }
+    }
+  }
+  
+  private Uri getChannelUri(Uri baseUri, int channel) {
+    try {
+      URL url = new URL(Uri.withAppendedPath(baseUri, (channel+1) + ".m3u").toString());
+      // URL url = new URL("http://radio.intergalacticfm.com/" + (channel+1) + "aacp.m3u");
+      BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
+      String line = reader.readLine();
+      return Uri.parse(line);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    return null;
   }
 
   @Override
@@ -191,46 +259,8 @@ public class IfmService extends Service {
     mChannelUris = new Uri[NUMBER_OF_CHANNELS];
     super.onCreate();
   }
-  
-  @Override
-  public int onStartCommand(Intent intent, int flags, int startId) {
-    return START_STICKY;
-  }
-  
-  @Override
-  public void onDestroy() {
-    unregisterReceiver(mPhoneStateReceiver);
-    super.onDestroy();
-  }
-  
-  @Override
-  public IBinder onBind(Intent intent) {
-    return mBinder;
-  }
-  
-  @Override
-  public boolean onUnbind(Intent intent) {
-    mStateListener = null;
-    return super.onUnbind(intent);
-  }
 
   private void setupMediaPlayer() {
-    mMediaPlayer.setOnPreparedListener(new OnPreparedListener() {
-      @Override
-      public void onPrepared(MediaPlayer mp) {
-        mChannelPlaying = mChannelPreparing;
-        mChannelPreparing = NONE;
-        mMediaPlayer.start();
-        if (mStateListener != null) {
-          try {
-            mStateListener.onChannelStarted(mChannelPlaying);
-          } catch (RemoteException e) {
-            e.printStackTrace();
-          }
-        }
-      }
-    });
-
     mMediaPlayer.setOnErrorListener(new OnErrorListener() {
       @Override
       public boolean onError(MediaPlayer mp, int what, int extra) {
@@ -242,5 +272,27 @@ public class IfmService extends Service {
         return false;
       }
     });
+  }
+
+  @Override
+  public int onStartCommand(Intent intent, int flags, int startId) {
+    return START_STICKY;
+  }
+
+  @Override
+  public void onDestroy() {
+    unregisterReceiver(mPhoneStateReceiver);
+    super.onDestroy();
+  }
+
+  @Override
+  public IBinder onBind(Intent intent) {
+    return mBinder;
+  }
+
+  @Override
+  public boolean onUnbind(Intent intent) {
+    mStateListener = null;
+    return super.onUnbind(intent);
   }
 }
