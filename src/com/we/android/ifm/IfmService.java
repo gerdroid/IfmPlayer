@@ -84,6 +84,9 @@ public class IfmService extends Service {
             mMediaPlayer.prepare();
             mHandler.sendEmptyMessage(PlayerState.RUNNING.ordinal());
           } catch (Exception e) {
+            if (mStateListener != null) {
+              mStateListener.onChannelError();
+            }
             mHandler.sendEmptyMessage(PlayerState.IDLE.ordinal());
             e.printStackTrace();
           }
@@ -209,33 +212,19 @@ public class IfmService extends Service {
     mHandler = new AsyncStateHandler(handlerThread.getLooper());
   }
 
-  private void doPreparation() {
+  private void doPreparation() throws Exception {
     if (mChannelUris[mChannelPlaying] == null) {
       mChannelUris[mChannelPlaying] = getChannelUri(BLACKHOLE, mChannelPlaying); 
     }
-    if (mChannelUris[mChannelPlaying] != null) {
-      try {
-        mMediaPlayer.setDataSource(getBaseContext(), mChannelUris[mChannelPlaying]);
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-    } else {
-      if (mStateListener != null) {
-        mStateListener.onChannelError();
-      }
-    }
+    Log.d("IFM", "channelUir: " + mChannelUris[mChannelPlaying]);
+    mMediaPlayer.setDataSource(getBaseContext(), mChannelUris[mChannelPlaying]);
   }
 
-  private Uri getChannelUri(Uri baseUri, int channel) {
-    try {
-      URL url = new URL(Uri.withAppendedPath(baseUri, (channel+1) + ".m3u").toString());
-      BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
-      String line = reader.readLine();
-      return Uri.parse(line);
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    return null;
+  private Uri getChannelUri(Uri baseUri, int channel) throws Exception {
+    URL url = new URL(Uri.withAppendedPath(baseUri, (channel+1) + ".m3u").toString());
+    BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
+    String line = reader.readLine();
+    return Uri.parse(line);
   }
 
   @Override
@@ -260,7 +249,7 @@ public class IfmService extends Service {
         return false;
       }
     });
-    
+
     mMediaPlayer.setOnBufferingUpdateListener(new OnBufferingUpdateListener() {
       @Override
       public void onBufferingUpdate(MediaPlayer mp, int percent) {
