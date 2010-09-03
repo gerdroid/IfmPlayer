@@ -88,7 +88,7 @@ public class IfmService extends Service {
               mStateListener.onChannelError();
             }
             mHandler.sendEmptyMessage(PlayerState.IDLE.ordinal());
-            e.printStackTrace();
+            Log.e("IFM", "connection error: " + e.getMessage());;
           }
         } else {
           Log.d("IFM", "throw away: " + requestedState);
