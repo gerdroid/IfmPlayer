@@ -24,6 +24,7 @@ import android.content.DialogInterface.OnCancelListener;
 import android.content.SharedPreferences.Editor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
@@ -31,6 +32,8 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.Vibrator;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -220,7 +223,8 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   private static final String IFM_URL = "http://intergalacticfm.com";
   private static final int CHANNEL_UPDATE_FREQUENCY = 20 * SECOND_IN_MICROSECONDS;
   private static final int IFM_NOTIFICATION = 0;
-  private static int NUMBER_OF_CHANNELS = 4;
+  private static final int NUMBER_OF_CHANNELS = 4;
+  private static final int MENU_FLATTR = 0;
 
   private ProgressDialog mMediaPlayerProgress;
 
@@ -446,4 +450,27 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   @Override
   public void onServiceDisconnected(ComponentName name) {
   }
+  
+	@Override
+	public boolean onPrepareOptionsMenu(Menu menu) {
+		menu.getItem(MENU_FLATTR).setEnabled(true);
+		return super.onPrepareOptionsMenu(menu);
+	}
+
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		menu.add(Menu.NONE, MENU_FLATTR, 1, "Flattr").setEnabled(true);
+		return super.onCreateOptionsMenu(menu);
+	}
+
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		switch (item.getItemId()) {
+			case MENU_FLATTR:
+				Intent viewIntent = new Intent("android.intent.action.VIEW", Uri.parse("http://flattr.com/thing/48747/Intergalactic-FM-Music-For-The-Galaxy"));
+				startActivity(viewIntent);
+				break;
+		}
+		return super.onOptionsItemSelected(item);
+	}
 }
