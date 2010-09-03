@@ -6,8 +6,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.ArrayList;
+import java.util.List;
 
 import android.app.ListActivity;
 import android.app.Notification;
@@ -24,6 +24,7 @@ import android.content.DialogInterface.OnCancelListener;
 import android.content.SharedPreferences.Editor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -54,7 +55,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
   private static final int NONE = Integer.MAX_VALUE;
   private int mSelectedChannel = Adapter.NO_SELECTION;
-  private Timer mTimer;
   private ChannelInfo[] mChannelInfos;
 
   private Handler mHandler = new Handler();
@@ -92,27 +92,32 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
       return "artist: " + mArtist + " label: " + mLabel;
     }
   }
+  
+  class CyclicChannelUpdater implements Runnable {
+    @Override
+    public void run() {
+      new AsyncChannelQuery().execute();
+      mHandler.postDelayed(this, CHANNEL_UPDATE_FREQUENCY);
+    }
+  }
+  
+  private CyclicChannelUpdater mCyclicChannelUpdater = new CyclicChannelUpdater();
 
-  class UpdateView implements Runnable {
-
-    private ChannelInfo mChannelInfo;
-    private int mChannel;
-
-    public UpdateView(ChannelInfo info, int channel) {
+  class UpdateChannel {
+    ChannelInfo mChannelInfo;
+    int mChannel;
+    
+    public UpdateChannel(ChannelInfo info, int channel) {
       mChannelInfo = info;
       mChannel = channel;
     }
-
-    @Override
-    public void run() {
-      mChannelInfos[mChannel] = mChannelInfo;
-      mChannelViewAdapter.notifyDataSetChanged();
-    }
   }
 
-  class ChannelUpdater extends TimerTask {
+  class AsyncChannelQuery extends AsyncTask<Void, Void, List<UpdateChannel>> {
+    
     @Override
-    public void run() {
+    protected List<UpdateChannel> doInBackground(Void... params) {
+      List<UpdateChannel> updates = new ArrayList<UpdateChannel>();
       for (int i=0; i<NUMBER_OF_CHANNELS; i++) {
         String channelInfo = queryBlackHole(i);
         String artist = getArtist(channelInfo);
@@ -138,11 +143,19 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
           if (bitmap == null) {
             bitmap = mBlanco;
           }
-
-          ChannelInfo info = new ChannelInfo(artist, getLabel(channelInfo), bitmap);
-          mHandler.post(new UpdateView(info, i));
+          updates.add(new UpdateChannel(new ChannelInfo(artist, getLabel(channelInfo), bitmap), i));
         }
       }
+      return updates;
+    }
+    
+    @Override
+    protected void onPostExecute(List<UpdateChannel> updates) {
+      for (UpdateChannel update : updates) {
+        mChannelInfos[update.mChannel] = update.mChannelInfo;
+      }
+      mChannelViewAdapter.notifyDataSetChanged();
+      super.onPostExecute(updates);
     }
 
     private String queryBlackHole(int channel) {
@@ -389,7 +402,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   @Override
   protected void onDestroy() {
     mNotificationManager.cancel(IFM_NOTIFICATION);
-    mTimer.cancel();
     unbindService(this);
     super.onDestroy();
   }
@@ -399,15 +411,14 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     Editor editor = getPreferences(MODE_PRIVATE).edit();
     editor.putInt("channelSelected", mSelectedChannel);
     editor.commit();
-    mTimer.cancel();
+    mHandler.removeCallbacks(mCyclicChannelUpdater);
     super.onPause();
   }
 
   @Override
   protected void onResume() {
     super.onResume();
-    mTimer = new Timer();
-    mTimer.schedule(new ChannelUpdater(), 0, CHANNEL_UPDATE_FREQUENCY);
+    mHandler.post(mCyclicChannelUpdater);
   }
 
   private void doNotification() {

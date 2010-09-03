@@ -11,6 +11,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.media.MediaPlayer.OnBufferingUpdateListener;
 import android.media.MediaPlayer.OnErrorListener;
 import android.net.Uri;
 import android.os.Binder;
@@ -257,6 +258,13 @@ public class IfmService extends Service {
           mp.release();
         }
         return false;
+      }
+    });
+    
+    mMediaPlayer.setOnBufferingUpdateListener(new OnBufferingUpdateListener() {
+      @Override
+      public void onBufferingUpdate(MediaPlayer mp, int percent) {
+        Log.d("IFM", "percent: " + percent);
       }
     });
   }
