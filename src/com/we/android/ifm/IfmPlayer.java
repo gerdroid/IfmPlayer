@@ -44,65 +44,7 @@ import android.widget.AdapterView.OnItemClickListener;
 import android.widget.AdapterView.OnItemSelectedListener;
 
 public class IfmPlayer extends ListActivity implements ServiceConnection {
-
-  private static final int SECOND_IN_MICROSECONDS = 1000;
-  private static final String IFM_URL = "http://intergalacticfm.com";
-  private static final int CHANNEL_UPDATE_FREQUENCY = 20 * SECOND_IN_MICROSECONDS;
-  private static final int IFM_NOTIFICATION = 0;
-  private static int NUMBER_OF_CHANNELS = 4;
-
-  private ProgressDialog mMediaPlayerProgress;
-
-  private static final int NONE = Integer.MAX_VALUE;
-  private int mSelectedChannel = Adapter.NO_SELECTION;
-  private ChannelInfo[] mChannelInfos;
-
-  private Handler mHandler = new Handler();
-  private Vibrator mVibratorService;
-  private NotificationManager mNotificationManager;
-  private Bitmap mBlanco;
-  private ChannelViewAdapter mChannelViewAdapter;
-  private IfmService mPlayer;
-
-  class ChannelInfo {
-    private String mArtist;
-    private String mLabel;
-    private Bitmap mBitmap;
-
-    public ChannelInfo(String artist, String label, Bitmap bitmap) {
-      mArtist = artist;
-      mLabel = label;
-      mBitmap = bitmap;
-    }
-
-    public String getArtist() {
-      return mArtist;
-    }
-
-    public String getLabel() {
-      return mLabel;
-    }
-
-    public Bitmap getBitmap() {
-      return mBitmap;
-    }
-
-    @Override
-    public String toString() {
-      return "artist: " + mArtist + " label: " + mLabel;
-    }
-  }
   
-  class CyclicChannelUpdater implements Runnable {
-    @Override
-    public void run() {
-      new AsyncChannelQuery().execute();
-      mHandler.postDelayed(this, CHANNEL_UPDATE_FREQUENCY);
-    }
-  }
-  
-  private CyclicChannelUpdater mCyclicChannelUpdater = new CyclicChannelUpdater();
-
   class UpdateChannel {
     ChannelInfo mChannelInfo;
     int mChannel;
@@ -176,7 +118,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
         e.printStackTrace();
       }
       return "";
-    }	
+    } 
 
     private String getArtist(String channelInfo) {
       String tag = "<div id=\"track-info-trackname\">";
@@ -275,7 +217,34 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     }
   }
 
-  IPlayerStateListener mPlayerStateListener = new IPlayerStateListener() {
+  private static final int SECOND_IN_MICROSECONDS = 1000;
+  private static final String IFM_URL = "http://intergalacticfm.com";
+  private static final int CHANNEL_UPDATE_FREQUENCY = 20 * SECOND_IN_MICROSECONDS;
+  private static final int IFM_NOTIFICATION = 0;
+  private static int NUMBER_OF_CHANNELS = 4;
+
+  private ProgressDialog mMediaPlayerProgress;
+
+  private static final int NONE = Integer.MAX_VALUE;
+  private int mSelectedChannel = Adapter.NO_SELECTION;
+  private ChannelInfo[] mChannelInfos;
+
+  private Handler mHandler = new Handler();
+  private Vibrator mVibratorService;
+  private NotificationManager mNotificationManager;
+  private Bitmap mBlanco;
+  private ChannelViewAdapter mChannelViewAdapter;
+  private IfmService mPlayer;
+
+  private Runnable mCyclicChannelUpdater = new Runnable() {
+    @Override
+    public void run() {
+      new AsyncChannelQuery().execute();
+      mHandler.postDelayed(this, CHANNEL_UPDATE_FREQUENCY);
+    }
+  };
+
+  private IPlayerStateListener mPlayerStateListener = new IPlayerStateListener() {
     @Override
     public void onChannelStarted(final int channel) {
       if (mMediaPlayerProgress != null) {
