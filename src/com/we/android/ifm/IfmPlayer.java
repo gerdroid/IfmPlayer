@@ -44,53 +44,52 @@ import android.widget.AdapterView.OnItemClickListener;
 import android.widget.AdapterView.OnItemSelectedListener;
 
 public class IfmPlayer extends ListActivity implements ServiceConnection {
-  
+
   class UpdateChannel {
     ChannelInfo mChannelInfo;
     int mChannel;
-    
+
     public UpdateChannel(ChannelInfo info, int channel) {
       mChannelInfo = info;
       mChannel = channel;
     }
   }
 
-  class AsyncChannelQuery extends AsyncTask<Void, Void, List<UpdateChannel>> {
-    
+  class AsyncChannelQuery extends AsyncTask<Integer, Void, List<UpdateChannel>> {
+
     @Override
-    protected List<UpdateChannel> doInBackground(Void... params) {
+    protected List<UpdateChannel> doInBackground(Integer... params) {
+      int channel = params[0];
       List<UpdateChannel> updates = new ArrayList<UpdateChannel>();
-      for (int i=0; i<NUMBER_OF_CHANNELS; i++) {
-        String channelInfo = queryBlackHole(i);
-        String artist = getArtist(channelInfo);
-        if (!mChannelInfos[i].getArtist().equals(artist)) {
-          Bitmap bitmap = null;
-          URL coverUrl = getCoverArt(channelInfo);
-          if (coverUrl != null) {
-            try {
-              InputStream stream = coverUrl.openStream();
-              if (stream == null) {
-                Log.e("IFM", "no cover stream");
-              }
-              bitmap = BitmapFactory.decodeStream(stream);
-              if (bitmap == null) {
-                Log.e("IFM", "could not decode image");
-              }
-            } catch (IOException e) {
-              e.printStackTrace();
+      String channelInfo = queryBlackHole(channel);
+      String artist = getArtist(channelInfo);
+      if (!mChannelInfos[channel].getArtist().equals(artist)) {
+        Bitmap bitmap = null;
+        URL coverUrl = getCoverArt(channelInfo);
+        if (coverUrl != null) {
+          try {
+            InputStream stream = coverUrl.openStream();
+            if (stream == null) {
+              Log.e("IFM", "no cover stream");
             }
-          } else {
-            Log.e("IFM", "NPE: coverart");
+            bitmap = BitmapFactory.decodeStream(stream);
+            if (bitmap == null) {
+              Log.e("IFM", "could not decode image");
+            }
+          } catch (IOException e) {
+            e.printStackTrace();
           }
-          if (bitmap == null) {
-            bitmap = mBlanco;
-          }
-          updates.add(new UpdateChannel(new ChannelInfo(artist, getLabel(channelInfo), bitmap), i));
+        } else {
+          Log.e("IFM", "NPE: coverart");
         }
+        if (bitmap == null) {
+          bitmap = mBlanco;
+        }
+        updates.add(new UpdateChannel(new ChannelInfo(artist, getLabel(channelInfo), bitmap), channel));
       }
       return updates;
     }
-    
+
     @Override
     protected void onPostExecute(List<UpdateChannel> updates) {
       for (UpdateChannel update : updates) {
@@ -239,7 +238,9 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   private Runnable mCyclicChannelUpdater = new Runnable() {
     @Override
     public void run() {
-      new AsyncChannelQuery().execute();
+      for (int i=0; i<NUMBER_OF_CHANNELS; i++) {
+        new AsyncChannelQuery().execute(i);
+      }
       mHandler.postDelayed(this, CHANNEL_UPDATE_FREQUENCY);
     }
   };
