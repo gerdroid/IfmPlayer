@@ -9,6 +9,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
+import android.app.AlertDialog;
 import android.app.ListActivity;
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -21,9 +22,13 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.DialogInterface.OnCancelListener;
+import android.content.DialogInterface.OnClickListener;
 import android.content.SharedPreferences.Editor;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager.NameNotFoundException;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
@@ -31,6 +36,8 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.Vibrator;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -220,7 +227,9 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   private static final String IFM_URL = "http://intergalacticfm.com";
   private static final int CHANNEL_UPDATE_FREQUENCY = 20 * SECOND_IN_MICROSECONDS;
   private static final int IFM_NOTIFICATION = 0;
-  private static int NUMBER_OF_CHANNELS = 4;
+  private static final int NUMBER_OF_CHANNELS = 4;
+  private static final int MENU_FLATTR = 0;
+  private static final int MENU_INFO = 1;
 
   private ProgressDialog mMediaPlayerProgress;
 
@@ -389,6 +398,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   protected void onResume() {
     super.onResume();
     mHandler.post(mCyclicChannelUpdater);
+    Log.d("IFM", "version: "+getVersionName());
   }
 
   private void doNotification() {
@@ -446,4 +456,59 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   @Override
   public void onServiceDisconnected(ComponentName name) {
   }
+  
+	@Override
+	public boolean onPrepareOptionsMenu(Menu menu) {
+		menu.getItem(MENU_FLATTR).setEnabled(true);
+		menu.getItem(MENU_INFO).setEnabled(true);		
+		return super.onPrepareOptionsMenu(menu);
+	}
+
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		menu.add(Menu.NONE, MENU_FLATTR, 1, "Flattr").setEnabled(true);
+		menu.add(Menu.NONE, MENU_INFO, 2, "Info").setEnabled(true);
+		return super.onCreateOptionsMenu(menu);
+	}
+
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		switch (item.getItemId()) {
+			case MENU_FLATTR:
+				Intent viewIntent = new Intent("android.intent.action.VIEW", Uri.parse("http://flattr.com/thing/48747/Intergalactic-FM-Music-For-The-Galaxy"));
+				startActivity(viewIntent);
+				break;
+			case MENU_INFO:
+				showVersionAlert();
+				break;				
+		}
+		return super.onOptionsItemSelected(item);
+	}
+	
+	void showVersionAlert() {
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		builder.setTitle("IfmPlayer")
+				.setMessage("by Outer Rim Soft\n\nVersion "+getVersionName())
+		       .setCancelable(false)
+		       .setPositiveButton("OK", new OnClickListener() {
+				@Override
+				public void onClick(DialogInterface dialog, int which) {
+					// nothing to do
+				}
+			});
+		AlertDialog alert = builder.create();
+		alert.show();
+	}
+	
+	private String getVersionName() {
+	    ComponentName comp = new ComponentName(this, IfmPlayer.class);
+		try {
+			PackageInfo pinfo;
+			pinfo = getPackageManager().getPackageInfo(comp.getPackageName(), 0);
+			return pinfo.versionName;
+		} catch (NameNotFoundException e) {
+			e.printStackTrace();
+			return "unknown version";
+		}
+	}
 }
