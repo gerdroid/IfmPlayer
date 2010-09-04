@@ -488,7 +488,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 	void showVersionAlert() {
 		AlertDialog.Builder builder = new AlertDialog.Builder(this);
 		builder.setTitle("IfmPlayer")
-				.setMessage("by Outer Rim Soft\n\nVersion "+getVersionName())
+				.setMessage("by Outer Rim Soft\n\nBeta Version "+getVersionName())
 		       .setCancelable(false)
 		       .setPositiveButton("OK", new OnClickListener() {
 				@Override
