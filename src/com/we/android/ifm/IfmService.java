@@ -236,7 +236,7 @@ public class IfmService extends Service {
     mChannelUris = new Uri[NUMBER_OF_CHANNELS];
     super.onCreate();
   }
-
+  
   private void setupMediaPlayer() {
     mMediaPlayer.setOnErrorListener(new OnErrorListener() {
       @Override
@@ -256,11 +256,6 @@ public class IfmService extends Service {
         Log.d("IFM", "percent: " + percent);
       }
     });
-  }
-
-  @Override
-  public int onStartCommand(Intent intent, int flags, int startId) {
-    return START_STICKY;
   }
 
   @Override
