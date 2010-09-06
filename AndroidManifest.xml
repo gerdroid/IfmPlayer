@@ -17,7 +17,8 @@
         		<action android:name="com.we.android.ifm.IfmService"/>
         	</intent-filter>
         </service>
-    </application>
+    <activity android:name="PreferencesEditor"></activity>
+</application>
     <uses-sdk android:minSdkVersion="7" />
 
 <uses-permission android:name="android.permission.INTERNET"/>

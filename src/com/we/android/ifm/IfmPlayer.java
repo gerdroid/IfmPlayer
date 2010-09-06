@@ -35,6 +35,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.Vibrator;
+import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -230,7 +231,8 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   private static final int NUMBER_OF_CHANNELS = 4;
   private static final int MENU_FLATTR = 0;
   private static final int MENU_INFO = 1;
-
+  private static final int MENU_SETTINGS = 2;
+  
   private ProgressDialog mMediaPlayerProgress;
 
   private static final int NONE = Integer.MAX_VALUE;
@@ -314,7 +316,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     getListView().setOnItemClickListener(new OnItemClickListener() {
       @Override
       public void onItemClick(AdapterView<?> view, View child, int pos, long id) {
-        mVibratorService.vibrate(80);
+    	vibrate();
         try {
           if ((mPlayer != null) && mPlayer.isPlaying()) {
             if (mPlayer.getPlayingChannel() == pos) {
@@ -334,6 +336,14 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
           e.printStackTrace();
         }
       }
+
+	private void vibrate() {
+		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(IfmPlayer.this);
+    	boolean vibrate = prefs.getBoolean("vibrate", true);
+        if (vibrate) { 
+        	mVibratorService.vibrate(80);
+        }
+	}
     });
 
     mVibratorService = (Vibrator) getSystemService(VIBRATOR_SERVICE);
@@ -460,7 +470,8 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 	@Override
 	public boolean onPrepareOptionsMenu(Menu menu) {
 		menu.getItem(MENU_FLATTR).setEnabled(true);
-		menu.getItem(MENU_INFO).setEnabled(true);		
+		menu.getItem(MENU_INFO).setEnabled(true);
+		menu.getItem(MENU_SETTINGS).setEnabled(true);
 		return super.onPrepareOptionsMenu(menu);
 	}
 
@@ -468,6 +479,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 	public boolean onCreateOptionsMenu(Menu menu) {
 		menu.add(Menu.NONE, MENU_FLATTR, 1, "Flattr").setEnabled(true);
 		menu.add(Menu.NONE, MENU_INFO, 2, "Info").setEnabled(true);
+		menu.add(Menu.NONE, MENU_SETTINGS, 3, "Settings").setEnabled(true);
 		return super.onCreateOptionsMenu(menu);
 	}
 
@@ -480,7 +492,10 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 				break;
 			case MENU_INFO:
 				showVersionAlert();
-				break;				
+				break;
+			case MENU_SETTINGS:
+				startActivity(new Intent(this, PreferencesEditor.class));
+				break;
 		}
 		return super.onOptionsItemSelected(item);
 	}
