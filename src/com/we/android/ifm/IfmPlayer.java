@@ -1,7 +1,6 @@
 package com.we.android.ifm;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
@@ -68,31 +67,24 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     protected List<UpdateChannel> doInBackground(Integer... params) {
       int channel = params[0];
       List<UpdateChannel> updates = new ArrayList<UpdateChannel>();
-      String channelInfo = queryBlackHole(channel);
-      String artist = getArtist(channelInfo);
-      if (!mChannelInfos[channel].getArtist().equals(artist)) {
+      ChannelInfo channelInfo = queryBlackHole(channel);
+      if (!mChannelInfos[channel].getArtist().equals(channelInfo.getArtist())) {
         Bitmap bitmap = null;
-        URL coverUrl = getCoverArt(channelInfo);
+        URL coverUrl = channelInfo.getCoverUrl();
         if (coverUrl != null) {
-          try {
-            InputStream stream = coverUrl.openStream();
-            if (stream == null) {
-              Log.e("IFM", "no cover stream");
+            try {
+              bitmap = getBitmap(coverUrl);
+            } catch (Exception e) {
+              e.printStackTrace();
             }
-            bitmap = BitmapFactory.decodeStream(stream);
-            if (bitmap == null) {
-              Log.e("IFM", "could not decode image");
-            }
-          } catch (IOException e) {
-            e.printStackTrace();
-          }
         } else {
           Log.e("IFM", "NPE: coverart");
         }
         if (bitmap == null) {
           bitmap = mBlanco;
         }
-        updates.add(new UpdateChannel(new ChannelInfo(artist, getLabel(channelInfo), bitmap), channel));
+        mChannelBitmaps[channel] = bitmap;
+        updates.add(new UpdateChannel(channelInfo, channel));
       }
       return updates;
     }
@@ -106,7 +98,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
       super.onPostExecute(updates);
     }
 
-    private String queryBlackHole(int channel) {
+    private ChannelInfo queryBlackHole(int channel) {
       try {
         URL url = new URL(IFM_URL + "/blackhole/homepage.php?channel=" + (channel+1));
         InputStream is = url.openStream();
@@ -119,12 +111,17 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
           line = "";
         }
         Log.d("IFM", "blackhole response: " + line);
-        return line;
+        return new ChannelInfo(getArtist(line), getLabel(line), getCoverArt(line));
       } catch (Exception e) {
         e.printStackTrace();
       }
-      return "";
-    } 
+      return new ChannelInfo();
+    }
+    
+    private Bitmap getBitmap(URL coverUrl) throws Exception {
+      InputStream stream = coverUrl.openStream();
+      return BitmapFactory.decodeStream(stream);
+    }
 
     private String getArtist(String channelInfo) {
       String tag = "<div id=\"track-info-trackname\">";
@@ -200,11 +197,11 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
       } else {
         channelView = convertView;
       }
-      updateChannelView(channelView, position, mChannelInfos[position]);
+      updateView(channelView, position, mChannelInfos[position]);
       return channelView;
     }
 
-    private void updateChannelView(View channelView, int channel, ChannelInfo channelInfo) {
+    private void updateView(View channelView, int channel, ChannelInfo info) {
       channelView.setBackgroundResource(mChannelColor[channel]);
       ((TextView) channelView.findViewById(R.id.channel_name)).setText(mChannelName[channel]);
       if (channel == mChannelPlaying) {
@@ -213,13 +210,9 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
       } else {
         ((ImageView) channelView.findViewById(R.id.playIndicator)).setVisibility(View.INVISIBLE);
       }
-      updateChannelInfo(channelView, channelInfo);
-    }
-
-    private void updateChannelInfo(View channel, ChannelInfo info) {
-      ((ImageView) channel.findViewById(R.id.cover)).setImageBitmap(info.getBitmap());
-      ((TextView) channel.findViewById(R.id.artist)).setText(info.getArtist());
-      ((TextView) channel.findViewById(R.id.label)).setText(info.getLabel());
+      ((ImageView) channelView.findViewById(R.id.cover)).setImageBitmap(mChannelBitmaps[channel]);
+      ((TextView) channelView.findViewById(R.id.artist)).setText(info.getArtist());
+      ((TextView) channelView.findViewById(R.id.label)).setText(info.getLabel());
     }
   }
 
@@ -236,15 +229,16 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   private static final int NONE = Integer.MAX_VALUE;
   private int mSelectedChannel = Adapter.NO_SELECTION;
   private ChannelInfo[] mChannelInfos;
+  private Bitmap[] mChannelBitmaps = new Bitmap[NUMBER_OF_CHANNELS];
 
-  private Handler mHandler = new Handler();
+  private final Handler mHandler = new Handler();
   private Vibrator mVibratorService;
   private NotificationManager mNotificationManager;
   private Bitmap mBlanco;
   private ChannelViewAdapter mChannelViewAdapter;
   private IfmService mPlayer;
 
-  private Runnable mCyclicChannelUpdater = new Runnable() {
+  private final Runnable mCyclicChannelUpdater = new Runnable() {
     @Override
     public void run() {
       for (int i=0; i<NUMBER_OF_CHANNELS; i++) {
@@ -254,7 +248,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     }
   };
 
-  private IPlayerStateListener mPlayerStateListener = new IPlayerStateListener() {
+  private final IPlayerStateListener mPlayerStateListener = new IPlayerStateListener() {
     @Override
     public void onChannelStarted(final int channel) {
       if (mMediaPlayerProgress != null) {
@@ -360,7 +354,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     mChannelInfos = (ChannelInfo[]) getLastNonConfigurationInstance();
     if (mChannelInfos == null) {
       mChannelInfos = new ChannelInfo[NUMBER_OF_CHANNELS];
-      ChannelInfo defaultChannelInfo = new ChannelInfo("", "", mBlanco);
+      ChannelInfo defaultChannelInfo = new ChannelInfo("", "", null);
       for (int i=0; i<NUMBER_OF_CHANNELS; i++) {
         mChannelInfos[i] = defaultChannelInfo;
       }

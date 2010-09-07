@@ -1,16 +1,27 @@
 package com.we.android.ifm;
 
-import android.graphics.Bitmap;
+import java.net.MalformedURLException;
+import java.net.URL;
 
 class ChannelInfo {
   private String mArtist;
   private String mLabel;
-  private Bitmap mBitmap;
+  private URL mCoverUrl;
 
-  public ChannelInfo(String artist, String label, Bitmap bitmap) {
+  public ChannelInfo(String artist, String label, URL coverUrl) {
     mArtist = artist;
     mLabel = label;
-    mBitmap = bitmap;
+    mCoverUrl = coverUrl;
+  }
+  
+  public ChannelInfo() {
+    mArtist = "";
+    mLabel = "";
+    try {
+      mCoverUrl = new URL("");
+    } catch (MalformedURLException e) {
+      e.printStackTrace();
+    }
   }
 
   public String getArtist() {
@@ -21,8 +32,8 @@ class ChannelInfo {
     return mLabel;
   }
 
-  public Bitmap getBitmap() {
-    return mBitmap;
+  public URL getCoverUrl() {
+    return mCoverUrl;
   }
 
   @Override
