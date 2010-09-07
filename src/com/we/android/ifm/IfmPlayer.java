@@ -25,6 +25,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.Vibrator;
+import android.preference.PreferenceManager;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -155,7 +156,8 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
   private static final int MENU_FLATTR = 0;
   private static final int MENU_INFO = 1;
-
+  private static final int MENU_SETTINGS = 2;
+  
   private ProgressDialog mMediaPlayerProgress;
 
   private static final int NONE = Integer.MAX_VALUE;
@@ -237,7 +239,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     getListView().setOnItemClickListener(new OnItemClickListener() {
       @Override
       public void onItemClick(AdapterView<?> view, View child, int pos, long id) {
-        mVibratorService.vibrate(80);
+    	vibrate();
         try {
           if ((mPlayer != null) && mPlayer.isPlaying()) {
             if (mPlayer.getPlayingChannel() == pos) {
@@ -256,6 +258,14 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
           e.printStackTrace();
         }
       }
+
+	private void vibrate() {
+		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(IfmPlayer.this);
+    	boolean vibrate = prefs.getBoolean("vibrate", true);
+        if (vibrate) { 
+        	mVibratorService.vibrate(80);
+        }
+	}
     });
 
     mVibratorService = (Vibrator) getSystemService(VIBRATOR_SERVICE);
@@ -358,58 +368,63 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   public void onServiceDisconnected(ComponentName name) {
   }
 
-  @Override
-  public boolean onPrepareOptionsMenu(Menu menu) {
-    menu.getItem(MENU_FLATTR).setEnabled(true);
-    menu.getItem(MENU_INFO).setEnabled(true);		
-    return super.onPrepareOptionsMenu(menu);
-  }
+	@Override
+	public boolean onPrepareOptionsMenu(Menu menu) {
+		menu.getItem(MENU_FLATTR).setEnabled(true);
+		menu.getItem(MENU_INFO).setEnabled(true);
+		menu.getItem(MENU_SETTINGS).setEnabled(true);
+		return super.onPrepareOptionsMenu(menu);
+	}
 
-  @Override
-  public boolean onCreateOptionsMenu(Menu menu) {
-    menu.add(Menu.NONE, MENU_FLATTR, 1, "Flattr").setEnabled(true);
-    menu.add(Menu.NONE, MENU_INFO, 2, "Info").setEnabled(true);
-    return super.onCreateOptionsMenu(menu);
-  }
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		menu.add(Menu.NONE, MENU_FLATTR, 1, "Flattr").setEnabled(true);
+		menu.add(Menu.NONE, MENU_INFO, 2, "Info").setEnabled(true);
+		menu.add(Menu.NONE, MENU_SETTINGS, 3, "Settings").setEnabled(true);
+		return super.onCreateOptionsMenu(menu);
+	}
 
-  @Override
-  public boolean onOptionsItemSelected(MenuItem item) {
-    switch (item.getItemId()) {
-    case MENU_FLATTR:
-      Intent viewIntent = new Intent("android.intent.action.VIEW", Uri.parse("http://flattr.com/thing/48747/Intergalactic-FM-Music-For-The-Galaxy"));
-      startActivity(viewIntent);
-      break;
-    case MENU_INFO:
-      showVersionAlert();
-      break;				
-    }
-    return super.onOptionsItemSelected(item);
-  }
-
-  void showVersionAlert() {
-    AlertDialog.Builder builder = new AlertDialog.Builder(this);
-    builder.setTitle("IfmPlayer")
-    .setMessage("by Outer Rim Soft\n\nBeta Version "+getVersionName())
-    .setCancelable(false)
-    .setPositiveButton("OK", new OnClickListener() {
-      @Override
-      public void onClick(DialogInterface dialog, int which) {
-        // nothing to do
-      }
-    });
-    AlertDialog alert = builder.create();
-    alert.show();
-  }
-
-  private String getVersionName() {
-    ComponentName comp = new ComponentName(this, IfmPlayer.class);
-    try {
-      PackageInfo pinfo;
-      pinfo = getPackageManager().getPackageInfo(comp.getPackageName(), 0);
-      return pinfo.versionName;
-    } catch (NameNotFoundException e) {
-      e.printStackTrace();
-      return "unknown version";
-    }
-  }
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		switch (item.getItemId()) {
+			case MENU_FLATTR:
+				Intent viewIntent = new Intent("android.intent.action.VIEW", Uri.parse("http://flattr.com/thing/48747/Intergalactic-FM-Music-For-The-Galaxy"));
+				startActivity(viewIntent);
+				break;
+			case MENU_INFO:
+				showVersionAlert();
+				break;
+			case MENU_SETTINGS:
+				startActivity(new Intent(this, PreferencesEditor.class));
+				break;
+		}
+		return super.onOptionsItemSelected(item);
+	}
+	
+	void showVersionAlert() {
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		builder.setTitle("IfmPlayer")
+				.setMessage("by Outer Rim Soft\n\nBeta Version "+getVersionName())
+		       .setCancelable(false)
+		       .setPositiveButton("OK", new OnClickListener() {
+				@Override
+				public void onClick(DialogInterface dialog, int which) {
+					// nothing to do
+				}
+			});
+		AlertDialog alert = builder.create();
+		alert.show();
+	}
+	
+	private String getVersionName() {
+	    ComponentName comp = new ComponentName(this, IfmPlayer.class);
+		try {
+			PackageInfo pinfo;
+			pinfo = getPackageManager().getPackageInfo(comp.getPackageName(), 0);
+			return pinfo.versionName;
+		} catch (NameNotFoundException e) {
+			e.printStackTrace();
+			return "unknown version";
+		}
+	}
 }
