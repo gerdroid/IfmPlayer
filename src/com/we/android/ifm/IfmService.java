@@ -46,7 +46,7 @@ public class IfmService extends Service {
     }
   }
 
-  private LocalBinder mBinder = new LocalBinder();
+  private final LocalBinder mBinder = new LocalBinder();
 
   private enum PlayerState { IDLE, PREPARING, PREPARED, RUNNING };
   private PlayerState mState;
@@ -238,6 +238,7 @@ public class IfmService extends Service {
   }
 
   private void setupMediaPlayer() {
+    mMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
     mMediaPlayer.setOnErrorListener(new OnErrorListener() {
       @Override
       public boolean onError(MediaPlayer mp, int what, int extra) {
