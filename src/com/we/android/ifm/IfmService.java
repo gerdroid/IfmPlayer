@@ -35,7 +35,7 @@ public class IfmService extends Service {
   private static final int NONE = Integer.MAX_VALUE;
   private int mChannelPlaying = NONE; 
 
-  private Handler mHandler;
+  private Handler mAsyncHandler;
 
   private PhoneStateReceiver mPhoneStateReceiver;
   private IPlayerStateListener mStateListener;
@@ -72,7 +72,7 @@ public class IfmService extends Service {
         }
       } else if (requestedState == PlayerState.PREPARING) {
         if (mState == PlayerState.IDLE) {
-          mHandler.sendEmptyMessage(PlayerState.PREPARED.ordinal());
+          mAsyncHandler.sendEmptyMessage(PlayerState.PREPARED.ordinal());
         } else {
           Log.d("IFM", "throw away: " + requestedState);
           return;
@@ -82,12 +82,12 @@ public class IfmService extends Service {
           try {
             doPreparation();
             mMediaPlayer.prepare();
-            mHandler.sendEmptyMessage(PlayerState.RUNNING.ordinal());
+            mAsyncHandler.sendEmptyMessage(PlayerState.RUNNING.ordinal());
           } catch (Exception e) {
             if (mStateListener != null) {
               mStateListener.onChannelError();
             }
-            mHandler.sendEmptyMessage(PlayerState.IDLE.ordinal());
+            mAsyncHandler.sendEmptyMessage(PlayerState.IDLE.ordinal());
             Log.e("IFM", "connection error: " + e.getMessage());;
           }
         } else {
@@ -138,7 +138,7 @@ public class IfmService extends Service {
         Log.d("IFM", "IDLE");
         break;
       case TelephonyManager.CALL_STATE_RINGING:
-        mHandler.post(new Runnable() {
+        mAsyncHandler.post(new Runnable() {
           @Override
           public void run() {
             if(mState != PlayerState.IDLE) {
@@ -195,7 +195,7 @@ public class IfmService extends Service {
   }
 
   private void requestState(PlayerState state) {
-    mHandler.sendEmptyMessage(state.ordinal());
+    mAsyncHandler.sendEmptyMessage(state.ordinal());
   }
 
   public boolean isPreparing() {
@@ -209,7 +209,7 @@ public class IfmService extends Service {
   public IfmService() {
     HandlerThread handlerThread = new HandlerThread("IFMServiceWorker");
     handlerThread.start();
-    mHandler = new AsyncStateHandler(handlerThread.getLooper());
+    mAsyncHandler = new AsyncStateHandler(handlerThread.getLooper());
   }
 
   private void doPreparation() throws Exception {
