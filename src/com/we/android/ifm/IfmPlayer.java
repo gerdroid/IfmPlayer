@@ -1,17 +1,10 @@
 package com.we.android.ifm;
 
-import java.io.BufferedReader;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
 
 import android.app.AlertDialog;
 import android.app.ListActivity;
-import android.app.Notification;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.app.ProgressDialog;
 import android.content.ComponentName;
 import android.content.Context;
@@ -29,11 +22,9 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.Vibrator;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -50,116 +41,29 @@ import android.widget.AdapterView.OnItemSelectedListener;
 
 public class IfmPlayer extends ListActivity implements ServiceConnection {
 
-  class UpdateChannel {
-    ChannelInfo mChannelInfo;
-    int mChannel;
-
-    public UpdateChannel(ChannelInfo info, int channel) {
-      mChannelInfo = info;
-      mChannel = channel;
-    }
-  }
-
-  class AsyncChannelQuery extends AsyncTask<Integer, Void, List<UpdateChannel>> {
-
-    @Override
-    protected List<UpdateChannel> doInBackground(Integer... params) {
-      int channel = params[0];
-      List<UpdateChannel> updates = new ArrayList<UpdateChannel>();
-      ChannelInfo channelInfo = queryBlackHole(channel);
-      if (!mChannelInfos[channel].getArtist().equals(channelInfo.getArtist())) {
-        mChannelBitmaps[channel] = getBitmap(channelInfo.getCoverUri());
-        updates.add(new UpdateChannel(channelInfo, channel));
-      }
-      return updates;
-    }
-
-    @Override
-    protected void onPostExecute(List<UpdateChannel> updates) {
-      for (UpdateChannel update : updates) {
-        mChannelInfos[update.mChannel] = update.mChannelInfo;
-      }
-      mChannelViewAdapter.notifyDataSetChanged();
-      super.onPostExecute(updates);
-    }
-
-    private ChannelInfo queryBlackHole(int channel) {
-      ChannelInfo info = ChannelInfo.NO_INFO;
-      try {
-        URL url = new URL(IFM_URL + "/blackhole/homepage.php?channel=" + (channel+1));
-        InputStream is = url.openStream();
-        BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-        String line = reader.readLine(); // skip one line
-        if (!line.startsWith("<div id=\"thumb\">")) {
-          line = reader.readLine();
-        }
-        if (line == null) {
-          line = "";
-        }
-        Log.d("IFM", "blackhole response: " + line);
-        info = new ChannelInfo(getArtist(line), getLabel(line), getCoverUri(line));
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-      return info;
-    }
-
-    private Bitmap getBitmap(Uri coverUri) {
-      Bitmap bitmap = null;
-      try {
-        URL url = new URL(coverUri.toString());
-        InputStream stream = url.openStream();
-        bitmap =  BitmapFactory.decodeStream(stream);
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-      if (bitmap == null) {
-        bitmap = mBlanco;
-      }
-      return bitmap;
-    }
-
-    private String getArtist(String channelInfo) {
-      String tag = "<div id=\"track-info-trackname\">";
-      int startSearchFrom = channelInfo.indexOf(tag);
-      int from = channelInfo.indexOf(">", startSearchFrom + tag.length()) + 2;
-      int to = channelInfo.indexOf("</a>", from);
-      return extractSubstring(channelInfo, from, to);
-    }
-
-    private String getLabel(String channelInfo) {
-      String tag = "<div id=\"track-info-label\">";
-      int from = channelInfo.indexOf(tag) + tag.length();
-      int to = channelInfo.indexOf("</div>", from);
-      return extractSubstring(channelInfo, from, to);
-    }
-
-    private Uri getCoverUri(String channelInfo) {
-      Uri uri = Uri.EMPTY;
-      String searchterm = "img src=";
-      int indexOf = channelInfo.indexOf(searchterm);
-      if (indexOf != -1) {
-        int from = indexOf + searchterm.length() + 1;
-        int to = channelInfo.indexOf("\"", from);
-        String pathToImage = extractSubstring(channelInfo, from, to);
-        uri = Uri.parse(IFM_URL + pathToImage);
-      }
-      return uri;
-    }
-
-    private String extractSubstring(String str, int from, int to) {
-      if ((from < str.length()) && (to < str.length()) && (from < to)) {
-        return str.substring(from, to);
-      } else {
-        return "";
-      }
-    }
-  }
-
   class ChannelViewAdapter extends BaseAdapter {
     private final int mChannelColor[] = new int[]{R.color.ifm1, R.color.ifm2, R.color.ifm3, R.color.ifm4};
     private final String mChannelName[] = new String[]{"MurderCapital FM", "Intergalactic Classix", "The Dream Machine", "Cybernetic Broadcasting"};
     private int mChannelPlaying = NONE;
+    private ChannelInfo[] mChannelInfos = new ChannelInfo[Constants.NUMBER_OF_CHANNELS];
+    private Bitmap[] mChannelBitmaps = new Bitmap[Constants.NUMBER_OF_CHANNELS];
+    
+    public ChannelViewAdapter() {
+      for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
+        mChannelInfos[i] = ChannelInfo.NO_INFO;
+        mChannelBitmaps[i] = mBlanco;
+      }
+    }
+    
+    public void updateChannelInfo(int channel, ChannelInfo info) {
+      mChannelInfos[channel] = info;
+      notifyDataSetChanged();
+    }
+    
+    public void updateBitmap(int channel, Bitmap bitmap) {
+      mChannelBitmaps[channel] = bitmap;
+      notifyDataSetChanged();
+    }
 
     public void setChannelPlaying(int channel) {
       mChannelPlaying = channel;
@@ -168,7 +72,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
     @Override
     public int getCount() {
-      return NUMBER_OF_CHANNELS;
+      return Constants.NUMBER_OF_CHANNELS;
     }
 
     @Override
@@ -207,12 +111,48 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
       ((TextView) channelView.findViewById(R.id.label)).setText(info.getLabel());
     }
   }
+  
+  class UpdateCoverImage {
+    int mChannel;
+    Uri mCoverUri;
+    
+    public UpdateCoverImage(int channel, Uri coverUri) {
+      mChannel = channel;
+      mCoverUri = coverUri;
+    }
+  }
+  
+  class CoverImageLoader extends AsyncTask<UpdateCoverImage, Void, Bitmap> {
+    private int mChannel;
 
-  private static final int SECOND_IN_MICROSECONDS = 1000;
-  private static final String IFM_URL = "http://intergalacticfm.com";
-  private static final int CHANNEL_UPDATE_FREQUENCY = 20 * SECOND_IN_MICROSECONDS;
-  private static final int IFM_NOTIFICATION = 0;
-  private static final int NUMBER_OF_CHANNELS = 4;
+    @Override
+    protected Bitmap doInBackground(UpdateCoverImage... updates) {
+      mChannel = updates[0].mChannel;
+      return getBitmap(updates[0].mCoverUri);
+    }
+    
+    @Override
+    protected void onPostExecute(Bitmap result) {
+      mChannelViewAdapter.updateBitmap(mChannel, result);
+      super.onPostExecute(result);
+    }
+    
+    private Bitmap getBitmap(Uri coverUri) {
+      Bitmap bitmap = null;
+      try {
+        URL url = new URL(coverUri.toString());
+        InputStream stream = url.openStream();
+        bitmap = BitmapFactory.decodeStream(stream);
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+      if (bitmap == null) {
+        bitmap = mBlanco;
+      }
+      return bitmap;
+    }
+  }
+
   private static final int MENU_FLATTR = 0;
   private static final int MENU_INFO = 1;
 
@@ -220,25 +160,12 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
   private static final int NONE = Integer.MAX_VALUE;
   private int mSelectedChannel = Adapter.NO_SELECTION;
-  private ChannelInfo[] mChannelInfos;
-  private Bitmap[] mChannelBitmaps = new Bitmap[NUMBER_OF_CHANNELS];
 
-  private final Handler mHandler = new Handler();
-  private Vibrator mVibratorService;
-  private NotificationManager mNotificationManager;
   private Bitmap mBlanco;
+
+  private Vibrator mVibratorService;
   private ChannelViewAdapter mChannelViewAdapter;
   private IfmService mPlayer;
-
-  private final Runnable mCyclicChannelUpdater = new Runnable() {
-    @Override
-    public void run() {
-      for (int i=0; i<NUMBER_OF_CHANNELS; i++) {
-        new AsyncChannelQuery().execute(i);
-      }
-      mHandler.postDelayed(this, CHANNEL_UPDATE_FREQUENCY);
-    }
-  };
 
   private final IPlayerStateListener mPlayerStateListener = new IPlayerStateListener() {
     @Override
@@ -247,7 +174,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
         runOnUiThread(new Runnable() {
           @Override
           public void run() {
-            doNotification();
             mChannelViewAdapter.setChannelPlaying(channel);
             mMediaPlayerProgress.dismiss();
           }
@@ -267,6 +193,16 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
         });
       }
     }
+
+    @Override
+    public void onChannelInfoChanged(int channel, ChannelInfo channelInfo) {
+      if (channelInfo != ChannelInfo.NO_INFO) {
+        if (mChannelViewAdapter != null) {
+          mChannelViewAdapter.updateChannelInfo(channel, channelInfo);
+        }
+        new CoverImageLoader().execute(new UpdateCoverImage(channel, channelInfo.getCoverUri()));
+      }
+    }
   };
 
   @Override
@@ -276,13 +212,14 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
     setContentView(R.layout.main);
     restoreState(savedInstanceState);
+    mBlanco = BitmapFactory.decodeResource(getResources(), R.drawable.blanco);
     mChannelViewAdapter = new ChannelViewAdapter();
     setListAdapter(mChannelViewAdapter);
+
 
     startService(new Intent(IfmService.class.getName()));
     bindService(new Intent(IfmService.class.getName()), this, Context.BIND_AUTO_CREATE);
 
-    //		getListView().setSelection(mSelectedChannel);
     getListView().setDivider(null);
 
     getListView().setOnItemSelectedListener(new OnItemSelectedListener() {
@@ -307,7 +244,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
               mSelectedChannel = Adapter.NO_SELECTION;
               mChannelViewAdapter.setChannelPlaying(NONE);
               mPlayer.stop();
-              stopNotification();
             } else {
               mChannelViewAdapter.setChannelPlaying(NONE);
               mPlayer.stop();
@@ -323,7 +259,25 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     });
 
     mVibratorService = (Vibrator) getSystemService(VIBRATOR_SERVICE);
-    mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+  }
+  
+  @Override
+  protected void onResume() {
+    if (mPlayer != null) {
+      mPlayer.setVisible(true);
+      updateChannelInfosFromService();
+    }
+    super.onResume();
+  }
+  
+  private void updateChannelInfosFromService() {
+    ChannelInfo[] infos = mPlayer.getChannelInfo();
+    for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
+      if (infos[i] != ChannelInfo.NO_INFO) {
+        mChannelViewAdapter.updateChannelInfo(i, infos[i]);
+        new CoverImageLoader().execute(new UpdateCoverImage(i, infos[i].getCoverUri()));
+      }
+    }
   }
 
   private void playChannel(int channel) throws RemoteException {
@@ -342,23 +296,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
       mSelectedChannel = preferences.getInt("channelSelected", NONE);
     }
     getListView().setSelection(mSelectedChannel);
-    mChannelInfos = (ChannelInfo[]) getLastNonConfigurationInstance();
-    if (mChannelInfos == null) {
-      mChannelInfos = new ChannelInfo[NUMBER_OF_CHANNELS];
-      ChannelInfo defaultChannelInfo = new ChannelInfo("", "", null);
-      for (int i=0; i<NUMBER_OF_CHANNELS; i++) {
-        mChannelInfos[i] = defaultChannelInfo;
-      }
-    }
-    mBlanco = BitmapFactory.decodeResource(getResources(), R.drawable.blanco);
-    for (int i=0; i<NUMBER_OF_CHANNELS; i++) {
-      mChannelBitmaps[i] = mBlanco;
-    }
-  }
-
-  @Override
-  public Object onRetainNonConfigurationInstance() {
-    return mChannelInfos;
   }
 
   @Override
@@ -369,51 +306,24 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
   @Override
   protected void onDestroy() {
-    mNotificationManager.cancel(IFM_NOTIFICATION);
     unbindService(this);
     super.onDestroy();
   }
-
+  
   @Override
   protected void onPause() {
     Editor editor = getPreferences(MODE_PRIVATE).edit();
     editor.putInt("channelSelected", mSelectedChannel);
     editor.commit();
-    mHandler.removeCallbacks(mCyclicChannelUpdater);
-    super.onPause();
-  }
-
-  @Override
-  protected void onResume() {
-    super.onResume();
-    mHandler.post(mCyclicChannelUpdater);
-    Log.d("IFM", "version: "+getVersionName());
-  }
-
-  private void doNotification() {
-    int channelPlaying = NONE;
     if (mPlayer != null) {
-      channelPlaying = mPlayer.getPlayingChannel();
+      mPlayer.setVisible(false);
     }
-    if (channelPlaying != NONE) {
-      Intent intent = new Intent(this, IfmPlayer.class);
-      intent.setAction(Intent.ACTION_VIEW);
-      String artist = mChannelInfos[channelPlaying].getArtist();
-      Notification notification = new Notification(R.drawable.ifm, "Playing "+artist, System.currentTimeMillis());
-      notification.flags |= Notification.FLAG_NO_CLEAR;
-      notification.setLatestEventInfo(IfmPlayer.this, "IFM Player","playing " + artist, 
-          PendingIntent.getActivity(this.getBaseContext(), 0, intent, PendingIntent.FLAG_CANCEL_CURRENT));
-      mNotificationManager.notify(IFM_NOTIFICATION, notification);
-    }
+    super.onPause();
   }
 
   private void showConnectionProblem(Context context) {
     Toast toast = Toast.makeText(context, "Connection Problem", Toast.LENGTH_LONG);
     toast.show();
-  }
-
-  private void stopNotification() {
-    mNotificationManager.cancel(IFM_NOTIFICATION);
   }
 
   private void showProgress() {
@@ -434,6 +344,8 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   public void onServiceConnected(ComponentName name, IBinder service) {
     mPlayer = ((IfmService.LocalBinder) service).getService();
     mPlayer.registerStateListener(mPlayerStateListener);
+    mPlayer.setVisible(true);
+    updateChannelInfosFromService();
     if (mPlayer.isPreparing()) {
       showProgress();
     }

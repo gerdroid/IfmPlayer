@@ -1,9 +1,13 @@
 package com.we.android.ifm;
 
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
 
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -14,6 +18,7 @@ import android.media.MediaPlayer;
 import android.media.MediaPlayer.OnBufferingUpdateListener;
 import android.media.MediaPlayer.OnErrorListener;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -25,18 +30,105 @@ import android.telephony.TelephonyManager;
 import android.util.Log;
 
 public class IfmService extends Service {
+  
+  class AsyncChannelQuery extends AsyncTask<Integer, Void, ChannelInfo> {
+    private int mChannel;
 
+    @Override
+    protected ChannelInfo doInBackground(Integer... params) {
+      mChannel = params[0];
+      return queryBlackHole(mChannel);
+    }
+
+    @Override
+    protected void onPostExecute(ChannelInfo info) {
+      if (!mChannelInfos[mChannel].getArtist().equals(info.getArtist())) {
+        mChannelInfos[mChannel] = info;
+        updateNotification();
+        if (mStateListener != null) {
+          mStateListener.onChannelInfoChanged(mChannel, info);
+        }
+      }
+      super.onPostExecute(info);
+    }
+
+    private ChannelInfo queryBlackHole(int channel) {
+      ChannelInfo info = ChannelInfo.NO_INFO;
+      try {
+        URL url = new URL(IFM_URL + "/blackhole/homepage.php?channel=" + (channel+1));
+        InputStream is = url.openStream();
+        BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+        String line = reader.readLine(); // skip one line
+        if (!line.startsWith("<div id=\"thumb\">")) {
+          line = reader.readLine();
+        }
+        if (line == null) {
+          line = "";
+        }
+        Log.d("IFM", "blackhole response: " + line);
+        info = new ChannelInfo(getArtist(line), getLabel(line), getCoverUri(line));
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+      return info;
+    }
+
+    private String getArtist(String channelInfo) {
+      String tag = "<div id=\"track-info-trackname\">";
+      int startSearchFrom = channelInfo.indexOf(tag);
+      int from = channelInfo.indexOf(">", startSearchFrom + tag.length()) + 2;
+      int to = channelInfo.indexOf("</a>", from);
+      return extractSubstring(channelInfo, from, to);
+    }
+
+    private String getLabel(String channelInfo) {
+      String tag = "<div id=\"track-info-label\">";
+      int from = channelInfo.indexOf(tag) + tag.length();
+      int to = channelInfo.indexOf("</div>", from);
+      return extractSubstring(channelInfo, from, to);
+    }
+
+    private Uri getCoverUri(String channelInfo) {
+      Uri uri = Uri.EMPTY;
+      String searchterm = "img src=";
+      int indexOf = channelInfo.indexOf(searchterm);
+      if (indexOf != -1) {
+        int from = indexOf + searchterm.length() + 1;
+        int to = channelInfo.indexOf("\"", from);
+        String pathToImage = extractSubstring(channelInfo, from, to);
+        uri = Uri.parse(IFM_URL + pathToImage);
+      }
+      return uri;
+    }
+
+    private String extractSubstring(String str, int from, int to) {
+      if ((from < str.length()) && (to < str.length()) && (from < to)) {
+        return str.substring(from, to);
+      } else {
+        return "";
+      }
+    }
+  }
+
+  private static final int SECOND_IN_MICROSECONDS = 1000;
+  private static final int CHANNEL_UPDATE_FREQUENCY = 20 * SECOND_IN_MICROSECONDS;
+  private static String IFM_URL = "http://intergalacticfm.com";
   private static Uri BLACKHOLE = Uri.parse("http://radio.intergalacticfm.com");
-  private static final int NUMBER_OF_CHANNELS = 4;
+  private static final int IFM_NOTIFICATION = 0;
 
+  private ChannelInfo[] mChannelInfos;
+  
   private Uri[] mChannelUris;
   private MediaPlayer mMediaPlayer;
 
   private static final int NONE = Integer.MAX_VALUE;
   private int mChannelPlaying = NONE; 
+  private boolean mIsVisible;
 
   private Handler mAsyncHandler;
-
+  private Handler mHandler;
+  
+  private NotificationManager mNotificationManager;
   private PhoneStateReceiver mPhoneStateReceiver;
   private IPlayerStateListener mStateListener;
 
@@ -47,6 +139,21 @@ public class IfmService extends Service {
   }
 
   private final LocalBinder mBinder = new LocalBinder();
+
+  private final Runnable mCyclicChannelUpdater = new Runnable() {
+    @Override
+    public void run() {
+      if (mIsVisible) {
+        for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
+          new AsyncChannelQuery().execute(i);
+        }
+      } else if (mChannelPlaying != NONE) {
+        new AsyncChannelQuery().execute(mChannelPlaying);
+      }
+      mHandler.removeCallbacks(this);
+      mHandler.postDelayed(this, CHANNEL_UPDATE_FREQUENCY);
+    }
+  };
 
   private enum PlayerState { IDLE, PREPARING, PREPARED, RUNNING };
   private PlayerState mState;
@@ -98,6 +205,7 @@ public class IfmService extends Service {
         if (mState == PlayerState.PREPARED) {
           mMediaPlayer.start();
           if (mStateListener != null) {
+            updateNotification();
             mStateListener.onChannelStarted(mChannelPlaying);
           }
         } else {
@@ -178,6 +286,7 @@ public class IfmService extends Service {
     if (mChannelPlaying != NONE) {
       mChannelPlaying = NONE;
       Log.d("IFM", "stop");
+      stopNotification();
       requestState(PlayerState.IDLE);
     }
   }
@@ -193,6 +302,11 @@ public class IfmService extends Service {
     mChannelPlaying = channel;
     requestState(PlayerState.PREPARING);
   }
+  
+  public void setVisible(boolean visible) {
+    mIsVisible = visible;
+    mHandler.post(mCyclicChannelUpdater);
+  }
 
   private void requestState(PlayerState state) {
     mAsyncHandler.sendEmptyMessage(state.ordinal());
@@ -205,11 +319,9 @@ public class IfmService extends Service {
   public void registerStateListener(IPlayerStateListener stateListener) {
     mStateListener = stateListener;
   }
-
-  public IfmService() {
-    HandlerThread handlerThread = new HandlerThread("IFMServiceWorker");
-    handlerThread.start();
-    mAsyncHandler = new AsyncStateHandler(handlerThread.getLooper());
+  
+  public ChannelInfo[] getChannelInfo() {
+    return mChannelInfos;
   }
 
   private void doPreparation() throws Exception {
@@ -233,8 +345,37 @@ public class IfmService extends Service {
     registerReceiver(mPhoneStateReceiver, new IntentFilter("android.intent.action.PHONE_STATE"));
     mMediaPlayer = new MediaPlayer();
     setupMediaPlayer();
-    mChannelUris = new Uri[NUMBER_OF_CHANNELS];
+    mChannelUris = new Uri[Constants.NUMBER_OF_CHANNELS];
+    mChannelInfos = new ChannelInfo[Constants.NUMBER_OF_CHANNELS];
+    for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
+      mChannelInfos[i] = ChannelInfo.NO_INFO;
+    }
+    
+    HandlerThread handlerThread = new HandlerThread("IFMServiceWorker");
+    handlerThread.start();
+    mAsyncHandler = new AsyncStateHandler(handlerThread.getLooper());
+    
+    mHandler = new Handler();
+    
+    mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
     super.onCreate();
+  }
+  
+  private void updateNotification() {
+    if (mChannelPlaying != NONE) {
+      Intent intent = new Intent(this, IfmPlayer.class);
+      intent.setAction(Intent.ACTION_VIEW);
+      String artist = mChannelInfos[mChannelPlaying].getArtist();
+      Notification notification = new Notification(R.drawable.ifm, "Playing " + artist, System.currentTimeMillis());
+      notification.flags |= Notification.FLAG_NO_CLEAR;
+      notification.setLatestEventInfo(this, "IFM Player","playing " + artist, 
+          PendingIntent.getActivity(this.getBaseContext(), 0, intent, PendingIntent.FLAG_CANCEL_CURRENT));
+      mNotificationManager.notify(IFM_NOTIFICATION, notification);
+    }
+  }
+  
+  private void stopNotification() {
+    mNotificationManager.cancel(IFM_NOTIFICATION);
   }
 
   private void setupMediaPlayer() {
@@ -257,11 +398,6 @@ public class IfmService extends Service {
         Log.d("IFM", "percent: " + percent);
       }
     });
-  }
-
-  @Override
-  public int onStartCommand(Intent intent, int flags, int startId) {
-    return START_STICKY;
   }
 
   @Override
