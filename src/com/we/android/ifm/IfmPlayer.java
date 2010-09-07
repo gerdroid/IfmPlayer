@@ -69,21 +69,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
       List<UpdateChannel> updates = new ArrayList<UpdateChannel>();
       ChannelInfo channelInfo = queryBlackHole(channel);
       if (!mChannelInfos[channel].getArtist().equals(channelInfo.getArtist())) {
-        Bitmap bitmap = null;
-        URL coverUrl = channelInfo.getCoverUrl();
-        if (coverUrl != null) {
-            try {
-              bitmap = getBitmap(coverUrl);
-            } catch (Exception e) {
-              e.printStackTrace();
-            }
-        } else {
-          Log.e("IFM", "NPE: coverart");
-        }
-        if (bitmap == null) {
-          bitmap = mBlanco;
-        }
-        mChannelBitmaps[channel] = bitmap;
+        mChannelBitmaps[channel] = getBitmap(channelInfo.getCoverUri());
         updates.add(new UpdateChannel(channelInfo, channel));
       }
       return updates;
@@ -99,6 +85,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     }
 
     private ChannelInfo queryBlackHole(int channel) {
+      ChannelInfo info = ChannelInfo.NO_INFO;
       try {
         URL url = new URL(IFM_URL + "/blackhole/homepage.php?channel=" + (channel+1));
         InputStream is = url.openStream();
@@ -111,16 +98,26 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
           line = "";
         }
         Log.d("IFM", "blackhole response: " + line);
-        return new ChannelInfo(getArtist(line), getLabel(line), getCoverArt(line));
+        info = new ChannelInfo(getArtist(line), getLabel(line), getCoverUri(line));
       } catch (Exception e) {
         e.printStackTrace();
       }
-      return new ChannelInfo();
+      return info;
     }
-    
-    private Bitmap getBitmap(URL coverUrl) throws Exception {
-      InputStream stream = coverUrl.openStream();
-      return BitmapFactory.decodeStream(stream);
+
+    private Bitmap getBitmap(Uri coverUri) {
+      Bitmap bitmap = null;
+      try {
+        URL url = new URL(coverUri.toString());
+        InputStream stream = url.openStream();
+        bitmap =  BitmapFactory.decodeStream(stream);
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+      if (bitmap == null) {
+        bitmap = mBlanco;
+      }
+      return bitmap;
     }
 
     private String getArtist(String channelInfo) {
@@ -138,21 +135,17 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
       return extractSubstring(channelInfo, from, to);
     }
 
-    private URL getCoverArt(String channelInfo) {
-      URL url = null;
+    private Uri getCoverUri(String channelInfo) {
+      Uri uri = Uri.EMPTY;
       String searchterm = "img src=";
       int indexOf = channelInfo.indexOf(searchterm);
       if (indexOf != -1) {
         int from = indexOf + searchterm.length() + 1;
         int to = channelInfo.indexOf("\"", from);
         String pathToImage = extractSubstring(channelInfo, from, to);
-        try {
-          url = new URL(IFM_URL + pathToImage);
-        } catch (MalformedURLException e) {
-          e.printStackTrace();
-        }
+        uri = Uri.parse(IFM_URL + pathToImage);
       }
-      return url;
+      return uri;
     }
 
     private String extractSubstring(String str, int from, int to) {
@@ -350,7 +343,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
       mSelectedChannel = preferences.getInt("channelSelected", NONE);
     }
     getListView().setSelection(mSelectedChannel);
-    mBlanco = BitmapFactory.decodeResource(getResources(), R.drawable.blanco);
     mChannelInfos = (ChannelInfo[]) getLastNonConfigurationInstance();
     if (mChannelInfos == null) {
       mChannelInfos = new ChannelInfo[NUMBER_OF_CHANNELS];
@@ -358,6 +350,10 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
       for (int i=0; i<NUMBER_OF_CHANNELS; i++) {
         mChannelInfos[i] = defaultChannelInfo;
       }
+    }
+    mBlanco = BitmapFactory.decodeResource(getResources(), R.drawable.blanco);
+    for (int i=0; i<NUMBER_OF_CHANNELS; i++) {
+      mChannelBitmaps[i] = mBlanco;
     }
   }
 
@@ -450,59 +446,59 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   @Override
   public void onServiceDisconnected(ComponentName name) {
   }
-  
-	@Override
-	public boolean onPrepareOptionsMenu(Menu menu) {
-		menu.getItem(MENU_FLATTR).setEnabled(true);
-		menu.getItem(MENU_INFO).setEnabled(true);		
-		return super.onPrepareOptionsMenu(menu);
-	}
 
-	@Override
-	public boolean onCreateOptionsMenu(Menu menu) {
-		menu.add(Menu.NONE, MENU_FLATTR, 1, "Flattr").setEnabled(true);
-		menu.add(Menu.NONE, MENU_INFO, 2, "Info").setEnabled(true);
-		return super.onCreateOptionsMenu(menu);
-	}
+  @Override
+  public boolean onPrepareOptionsMenu(Menu menu) {
+    menu.getItem(MENU_FLATTR).setEnabled(true);
+    menu.getItem(MENU_INFO).setEnabled(true);		
+    return super.onPrepareOptionsMenu(menu);
+  }
 
-	@Override
-	public boolean onOptionsItemSelected(MenuItem item) {
-		switch (item.getItemId()) {
-			case MENU_FLATTR:
-				Intent viewIntent = new Intent("android.intent.action.VIEW", Uri.parse("http://flattr.com/thing/48747/Intergalactic-FM-Music-For-The-Galaxy"));
-				startActivity(viewIntent);
-				break;
-			case MENU_INFO:
-				showVersionAlert();
-				break;				
-		}
-		return super.onOptionsItemSelected(item);
-	}
-	
-	void showVersionAlert() {
-		AlertDialog.Builder builder = new AlertDialog.Builder(this);
-		builder.setTitle("IfmPlayer")
-				.setMessage("by Outer Rim Soft\n\nBeta Version "+getVersionName())
-		       .setCancelable(false)
-		       .setPositiveButton("OK", new OnClickListener() {
-				@Override
-				public void onClick(DialogInterface dialog, int which) {
-					// nothing to do
-				}
-			});
-		AlertDialog alert = builder.create();
-		alert.show();
-	}
-	
-	private String getVersionName() {
-	    ComponentName comp = new ComponentName(this, IfmPlayer.class);
-		try {
-			PackageInfo pinfo;
-			pinfo = getPackageManager().getPackageInfo(comp.getPackageName(), 0);
-			return pinfo.versionName;
-		} catch (NameNotFoundException e) {
-			e.printStackTrace();
-			return "unknown version";
-		}
-	}
+  @Override
+  public boolean onCreateOptionsMenu(Menu menu) {
+    menu.add(Menu.NONE, MENU_FLATTR, 1, "Flattr").setEnabled(true);
+    menu.add(Menu.NONE, MENU_INFO, 2, "Info").setEnabled(true);
+    return super.onCreateOptionsMenu(menu);
+  }
+
+  @Override
+  public boolean onOptionsItemSelected(MenuItem item) {
+    switch (item.getItemId()) {
+    case MENU_FLATTR:
+      Intent viewIntent = new Intent("android.intent.action.VIEW", Uri.parse("http://flattr.com/thing/48747/Intergalactic-FM-Music-For-The-Galaxy"));
+      startActivity(viewIntent);
+      break;
+    case MENU_INFO:
+      showVersionAlert();
+      break;				
+    }
+    return super.onOptionsItemSelected(item);
+  }
+
+  void showVersionAlert() {
+    AlertDialog.Builder builder = new AlertDialog.Builder(this);
+    builder.setTitle("IfmPlayer")
+    .setMessage("by Outer Rim Soft\n\nBeta Version "+getVersionName())
+    .setCancelable(false)
+    .setPositiveButton("OK", new OnClickListener() {
+      @Override
+      public void onClick(DialogInterface dialog, int which) {
+        // nothing to do
+      }
+    });
+    AlertDialog alert = builder.create();
+    alert.show();
+  }
+
+  private String getVersionName() {
+    ComponentName comp = new ComponentName(this, IfmPlayer.class);
+    try {
+      PackageInfo pinfo;
+      pinfo = getPackageManager().getPackageInfo(comp.getPackageName(), 0);
+      return pinfo.versionName;
+    } catch (NameNotFoundException e) {
+      e.printStackTrace();
+      return "unknown version";
+    }
+  }
 }
