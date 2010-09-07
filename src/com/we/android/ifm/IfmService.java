@@ -160,8 +160,8 @@ public class IfmService extends Service {
     }
 
     public void onReceive(Context context, Intent intent) {
-      TelephonyManager telephony = (TelephonyManager) 
-      context.getSystemService(Context.TELEPHONY_SERVICE);
+      TelephonyManager telephony = 
+        (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
       telephony.listen(mPhoneListener, PhoneStateListener.LISTEN_CALL_STATE);
     }
   }
