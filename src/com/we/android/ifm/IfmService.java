@@ -29,7 +29,7 @@ import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 
-public class IfmService extends Service {
+public class IfmService extends Service implements IPlayer {
   
   class AsyncChannelQuery extends AsyncTask<Integer, Void, ChannelInfo> {
     private int mChannel;
@@ -133,7 +133,7 @@ public class IfmService extends Service {
   private IPlayerStateListener mStateListener;
 
   class LocalBinder extends Binder {
-    public IfmService getService() {
+    public IPlayer getService() {
       return IfmService.this;
     }
   }
