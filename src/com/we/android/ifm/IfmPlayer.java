@@ -29,89 +29,14 @@ import android.preference.PreferenceManager;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.Window;
 import android.widget.Adapter;
 import android.widget.AdapterView;
-import android.widget.BaseAdapter;
-import android.widget.ImageView;
-import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.AdapterView.OnItemSelectedListener;
 
 public class IfmPlayer extends ListActivity implements ServiceConnection {
-
-  class ChannelViewAdapter extends BaseAdapter {
-    private final int mChannelColor[] = new int[]{R.color.ifm1, R.color.ifm2, R.color.ifm3, R.color.ifm4};
-    private final String mChannelName[] = new String[]{"MurderCapital FM", "Intergalactic Classix", "The Dream Machine", "Cybernetic Broadcasting"};
-    private int mChannelPlaying = NONE;
-    private ChannelInfo[] mChannelInfos = new ChannelInfo[Constants.NUMBER_OF_CHANNELS];
-    private Bitmap[] mChannelBitmaps = new Bitmap[Constants.NUMBER_OF_CHANNELS];
-
-    public ChannelViewAdapter() {
-      for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
-        mChannelInfos[i] = ChannelInfo.NO_INFO;
-        mChannelBitmaps[i] = mBlanco;
-      }
-    }
-
-    public void updateChannelInfo(int channel, ChannelInfo info) {
-      mChannelInfos[channel] = info;
-      notifyDataSetChanged();
-    }
-
-    public void updateBitmap(int channel, Bitmap bitmap) {
-      mChannelBitmaps[channel] = bitmap;
-      notifyDataSetChanged();
-    }
-
-    public void setChannelPlaying(int channel) {
-      mChannelPlaying = channel;
-      notifyDataSetChanged();
-    }
-
-    @Override
-    public int getCount() {
-      return Constants.NUMBER_OF_CHANNELS;
-    }
-
-    @Override
-    public Object getItem(int position) {
-      return null;
-    }
-
-    @Override
-    public long getItemId(int position) {
-      return position;
-    }
-
-    @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
-      View channelView;
-      if (convertView == null) {
-        channelView = getLayoutInflater().inflate(R.layout.channel, parent, false);
-      } else {
-        channelView = convertView;
-      }
-      updateView(channelView, position, mChannelInfos[position]);
-      return channelView;
-    }
-
-    private void updateView(View channelView, int channel, ChannelInfo info) {
-      channelView.setBackgroundResource(mChannelColor[channel]);
-      ((TextView) channelView.findViewById(R.id.channel_name)).setText(mChannelName[channel]);
-      if (channel == mChannelPlaying) {
-        ((ImageView) channelView.findViewById(R.id.playIndicator)).setVisibility(View.VISIBLE);
-        ((ImageView) channelView.findViewById(R.id.playIndicator)).setImageResource(R.drawable.play_indicator);
-      } else {
-        ((ImageView) channelView.findViewById(R.id.playIndicator)).setVisibility(View.INVISIBLE);
-      }
-      ((ImageView) channelView.findViewById(R.id.cover)).setImageBitmap(mChannelBitmaps[channel]);
-      ((TextView) channelView.findViewById(R.id.artist)).setText(info.getArtist());
-      ((TextView) channelView.findViewById(R.id.label)).setText(info.getLabel());
-    }
-  }
 
   class UpdateCoverImage {
     int mChannel;
@@ -147,9 +72,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
       } catch (Exception e) {
         e.printStackTrace();
       }
-      if (bitmap == null) {
-        bitmap = mBlanco;
-      }
       return bitmap;
     }
   }
@@ -162,8 +84,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
   private static final int NONE = Integer.MAX_VALUE;
   private int mSelectedChannel = Adapter.NO_SELECTION;
-
-  private Bitmap mBlanco;
 
   private Vibrator mVibratorService;
   private ChannelViewAdapter mChannelViewAdapter;
@@ -202,7 +122,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
         if (mChannelViewAdapter != null) {
           mChannelViewAdapter.updateChannelInfo(channel, channelInfo);
         }
-        new CoverImageLoader().execute(new UpdateCoverImage(channel, channelInfo.getCoverUri()));
+//        new CoverImageLoader().execute(new UpdateCoverImage(channel, channelInfo.getCoverUri()));
       }
     }
   };
@@ -214,8 +134,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
     setContentView(R.layout.main);
     restoreState(savedInstanceState);
-    mBlanco = BitmapFactory.decodeResource(getResources(), R.drawable.blanco);
-    mChannelViewAdapter = new ChannelViewAdapter();
+    mChannelViewAdapter = new ChannelViewAdapter(getLayoutInflater(), this);
     setListAdapter(mChannelViewAdapter);
 
     startService(new Intent(IfmService.class.getName()));
@@ -284,7 +203,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
       if (infos[i] != ChannelInfo.NO_INFO) {
         mChannelViewAdapter.updateChannelInfo(i, infos[i]);
-        new CoverImageLoader().execute(new UpdateCoverImage(i, infos[i].getCoverUri()));
+//        new CoverImageLoader().execute(new UpdateCoverImage(i, infos[i].getCoverUri()));
       }
     }
   }

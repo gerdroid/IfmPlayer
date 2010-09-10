@@ -121,8 +121,7 @@ public class IfmService extends Service implements IPlayer {
   private Uri[] mChannelUris;
   private MediaPlayer mMediaPlayer;
 
-  private static final int NONE = Integer.MAX_VALUE;
-  private int mChannelPlaying = NONE; 
+  private int mChannelPlaying = Constants.NONE; 
   private boolean mIsVisible;
 
   private Handler mAsyncHandler;
@@ -147,7 +146,7 @@ public class IfmService extends Service implements IPlayer {
         for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
           new AsyncChannelQuery().execute(i);
         }
-      } else if (mChannelPlaying != NONE) {
+      } else if (mChannelPlaying != Constants.NONE) {
         new AsyncChannelQuery().execute(mChannelPlaying);
       }
       mHandler.removeCallbacks(this);
@@ -279,12 +278,12 @@ public class IfmService extends Service implements IPlayer {
   }
 
   public boolean isPlaying() {
-    return (mChannelPlaying != NONE);
+    return (mChannelPlaying != Constants.NONE);
   }
 
   public void stop() {
-    if (mChannelPlaying != NONE) {
-      mChannelPlaying = NONE;
+    if (mChannelPlaying != Constants.NONE) {
+      mChannelPlaying = Constants.NONE;
       Log.d("IFM", "stop");
       stopNotification();
       requestState(PlayerState.IDLE);
@@ -292,7 +291,7 @@ public class IfmService extends Service implements IPlayer {
   }
 
   public void cancel() {
-    mChannelPlaying = NONE;
+    mChannelPlaying = Constants.NONE;
     Log.d("IFM", "cancel");
     requestState(PlayerState.IDLE);
   }
@@ -362,7 +361,7 @@ public class IfmService extends Service implements IPlayer {
   }
   
   private void updateNotification() {
-    if (mChannelPlaying != NONE) {
+    if (mChannelPlaying != Constants.NONE) {
       Intent intent = new Intent(this, IfmPlayer.class);
       intent.setAction(Intent.ACTION_VIEW);
       String artist = mChannelInfos[mChannelPlaying].getArtist();
