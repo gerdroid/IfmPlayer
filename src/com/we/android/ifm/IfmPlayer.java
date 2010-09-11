@@ -259,6 +259,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
   @Override
   protected void onDestroy() {
+    PreferenceManager.getDefaultSharedPreferences(this).unregisterOnSharedPreferenceChangeListener(mPrefChangedListener);
     unbindService(this);
     super.onDestroy();
   }
