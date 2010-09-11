@@ -20,9 +20,9 @@ class ChannelViewAdapter extends BaseAdapter {
   private LayoutInflater mInflater;
 
   public ChannelViewAdapter(LayoutInflater inflater, Context context) {
-    mDefaultBitmaps[0] = BitmapFactory.decodeResource(context.getResources(), R.drawable.blanco);
+    mDefaultBitmaps[0] = BitmapFactory.decodeResource(context.getResources(), R.drawable.ifm1);
     mDefaultBitmaps[1] = BitmapFactory.decodeResource(context.getResources(), R.drawable.ifm2);
-    mDefaultBitmaps[2] = BitmapFactory.decodeResource(context.getResources(), R.drawable.blanco);
+    mDefaultBitmaps[2] = BitmapFactory.decodeResource(context.getResources(), R.drawable.ifm3);
     mDefaultBitmaps[3] = BitmapFactory.decodeResource(context.getResources(), R.drawable.ifm4);    
     for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
       mChannelInfos[i] = ChannelInfo.NO_INFO;
@@ -44,7 +44,7 @@ class ChannelViewAdapter extends BaseAdapter {
     }
     notifyDataSetChanged();
   }
-
+  
   public void setChannelPlaying(int channel) {
     mChannelPlaying = channel;
     notifyDataSetChanged();
