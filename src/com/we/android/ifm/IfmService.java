@@ -191,6 +191,8 @@ public class IfmService extends Service implements IPlayer {
             mAsyncHandler.sendEmptyMessage(PlayerState.RUNNING.ordinal());
           } catch (Exception e) {
             if (mStateListener != null) {
+              mChannelPlaying = Constants.NONE;
+              stopNotification();
               mStateListener.onChannelError();
             }
             mAsyncHandler.sendEmptyMessage(PlayerState.IDLE.ordinal());

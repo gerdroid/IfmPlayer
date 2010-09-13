@@ -112,6 +112,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
         runOnUiThread(new Runnable() {
           @Override
           public void run() {
+            mChannelViewAdapter.setChannelPlaying(Constants.NONE);
             mMediaPlayerProgress.dismiss();
             showConnectionProblem(getApplicationContext());
           }
