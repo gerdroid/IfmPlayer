@@ -15,7 +15,6 @@ import android.content.SharedPreferences;
 import android.content.DialogInterface.OnCancelListener;
 import android.content.DialogInterface.OnClickListener;
 import android.content.SharedPreferences.Editor;
-import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.graphics.Bitmap;
@@ -27,7 +26,6 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.Vibrator;
 import android.preference.PreferenceManager;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -133,17 +131,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     }
   };
   
-  OnSharedPreferenceChangeListener mPrefChangedListener = new OnSharedPreferenceChangeListener() {
-    @Override
-    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
-      if (key.equals("showCoverArt")) {
-        mShowCoverArt = sharedPreferences.getBoolean(key, false);
-        Log.d("IFM", "showCover:" + mShowCoverArt);
-        updateChannelInfos();
-      }
-    }
-  };
-
   @Override
   public void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
@@ -157,7 +144,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
     SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
     mShowCoverArt = preferences.getBoolean("showCoverArt", false);
-    PreferenceManager.getDefaultSharedPreferences(this).registerOnSharedPreferenceChangeListener(mPrefChangedListener);
 
     startService(new Intent(IfmService.class.getName()));
     bindService(new Intent(IfmService.class.getName()), this, Context.BIND_AUTO_CREATE);
@@ -213,22 +199,25 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
   @Override
   protected void onResume() {
+    mShowCoverArt = PreferenceManager.getDefaultSharedPreferences(this).getBoolean("showCoverArt", false);
     if (mPlayer != null) {
-      mPlayer.setVisible(true);
       updateChannelInfos();
+      mPlayer.setVisible(true);
     }
     super.onResume();
   }
 
   private void updateChannelInfos() {
-    ChannelInfo[] infos = mPlayer.getChannelInfo();
-    for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
-      if (infos[i] != ChannelInfo.NO_INFO) {
-        mChannelViewAdapter.updateChannelInfo(i, infos[i]);
-        if (mShowCoverArt) {
-          new CoverImageLoader().execute(new UpdateCoverImage(i, infos[i].getCoverUri()));
-        } else {
-          mChannelViewAdapter.updateBitmap(i, null);
+    if (mPlayer != null) {
+      ChannelInfo[] infos = mPlayer.getChannelInfo();
+      for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
+        if (infos[i] != ChannelInfo.NO_INFO) {
+          mChannelViewAdapter.updateChannelInfo(i, infos[i]);
+          if (mShowCoverArt) {
+            new CoverImageLoader().execute(new UpdateCoverImage(i, infos[i].getCoverUri()));
+          } else {
+            mChannelViewAdapter.updateBitmap(i, null);
+          }
         }
       }
     }
@@ -260,7 +249,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
   @Override
   protected void onDestroy() {
-    PreferenceManager.getDefaultSharedPreferences(this).unregisterOnSharedPreferenceChangeListener(mPrefChangedListener);
     unbindService(this);
     super.onDestroy();
   }
