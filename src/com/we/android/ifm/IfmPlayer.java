@@ -162,6 +162,8 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
       }
     });
 
+    mVibratorService = (Vibrator) getSystemService(VIBRATOR_SERVICE);
+    
     getListView().setOnItemClickListener(new OnItemClickListener() {
       @Override
       public void onItemClick(AdapterView<?> view, View child, int pos, long id) {
@@ -193,8 +195,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
         }
       }
     });
-
-    mVibratorService = (Vibrator) getSystemService(VIBRATOR_SERVICE);
   }
 
   @Override
@@ -252,7 +252,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     unbindService(this);
     super.onDestroy();
   }
-
+  
   @Override
   protected void onPause() {
     Editor editor = getPreferences(MODE_PRIVATE).edit();

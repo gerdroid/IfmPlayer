@@ -404,6 +404,7 @@ public class IfmService extends Service implements IPlayer {
   @Override
   public void onDestroy() {
     unregisterReceiver(mPhoneStateReceiver);
+    stopNotification();
     super.onDestroy();
   }
 
