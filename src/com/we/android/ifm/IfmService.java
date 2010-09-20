@@ -122,7 +122,6 @@ public class IfmService extends Service implements IPlayer {
   private MediaPlayer mMediaPlayer;
 
   private int mChannelPlaying = Constants.NONE; 
-  private boolean mIsVisible;
 
   private Handler mAsyncHandler;
   private Handler mHandler;
@@ -142,7 +141,7 @@ public class IfmService extends Service implements IPlayer {
   private final Runnable mCyclicChannelUpdater = new Runnable() {
     @Override
     public void run() {
-      if (mIsVisible) {
+      if (mStateListener != null) {
         for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
           new AsyncChannelQuery().execute(i);
         }
@@ -303,11 +302,6 @@ public class IfmService extends Service implements IPlayer {
     mChannelPlaying = channel;
     requestState(PlayerState.PREPARING);
   }
-  
-  public void setVisible(boolean visible) {
-    mIsVisible = visible;
-    mHandler.post(mCyclicChannelUpdater);
-  }
 
   private void requestState(PlayerState state) {
     mAsyncHandler.sendEmptyMessage(state.ordinal());
@@ -319,6 +313,7 @@ public class IfmService extends Service implements IPlayer {
 
   public void registerStateListener(IPlayerStateListener stateListener) {
     mStateListener = stateListener;
+    mHandler.post(mCyclicChannelUpdater);
   }
   
   public ChannelInfo[] getChannelInfo() {

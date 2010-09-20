@@ -13,8 +13,6 @@ public interface IPlayer {
   
   public boolean isPreparing();
 
-  public void setVisible(boolean visible);
-  
   public void registerStateListener(IPlayerStateListener stateListener);
   
   public ChannelInfo[] getChannelInfo();
