@@ -204,6 +204,9 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   
   @Override
   protected void onPause() {
+    if (mMediaPlayerProgress != null) {
+      mMediaPlayerProgress.dismiss();
+    }
     boolean isPlaying = mPlayer.isPlaying();
     unbindService(this);
     if (!isPlaying) {
