@@ -398,6 +398,7 @@ public class IfmService extends Service implements IPlayer {
 
   @Override
   public void onDestroy() {
+    mHandler.removeCallbacks(mCyclicChannelUpdater);
     unregisterReceiver(mPhoneStateReceiver);
     stopNotification();
     super.onDestroy();
