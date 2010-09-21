@@ -81,8 +81,8 @@ public class IfmService extends Service implements IPlayer {
       Matcher m = p.matcher(channelInfo);
       if (m.matches()) {
         String pathToImage = m.group(1);
-        String artist = m.group(2);
-        String label = m.group(3);
+        String artist = m.group(2).trim();
+        String label = m.group(3).trim();
         Log.d("IFM", "artist: " + artist + " label: " + label);
         return new ChannelInfo(artist, label, Uri.parse(IFM_URL + pathToImage));
       }
