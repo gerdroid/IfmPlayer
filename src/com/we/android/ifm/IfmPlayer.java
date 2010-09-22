@@ -218,20 +218,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     super.onPause();
   }
 
-  private void updateChannelInfos() {
-    if (mPlayer != null) {
-      ChannelInfo[] infos = mPlayer.getChannelInfo();
-      for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
-        if ((infos[i] != ChannelInfo.NO_INFO) && mShowCoverArt) {
-          mChannelViewAdapter.updateChannelInfo(i, infos[i]);
-          new CoverImageLoader().execute(new UpdateCoverImage(i, infos[i].getCoverUri()));
-        } else {
-          mChannelViewAdapter.updateBitmap(i, null);
-        }
-      }
-    }
-  }
-
   private void playChannel(int channel) throws RemoteException {
     showProgress();
     mSelectedChannel = channel;
@@ -287,7 +273,23 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
       mChannelViewAdapter.setChannelPlaying(mPlayer.getPlayingChannel());
     }
   }
-
+  
+  private void updateChannelInfos() {
+    if (mPlayer != null) {
+      ChannelInfo[] infos = mPlayer.getChannelInfo();
+      for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
+        if (infos[i] != ChannelInfo.NO_INFO) {
+          mChannelViewAdapter.updateChannelInfo(i, infos[i]);
+          if (mShowCoverArt) {
+            new CoverImageLoader().execute(new UpdateCoverImage(i, infos[i].getCoverUri()));
+          }
+        } else {
+          mChannelViewAdapter.updateBitmap(i, null);
+        }
+      }
+    }
+  }
+  
   @Override
   public void onServiceDisconnected(ComponentName name) {
   }
