@@ -77,7 +77,7 @@ public class IfmService extends Service implements IPlayer {
       String tag1 = "img src=";
       String tag2 = "<div id=\"track-info-trackname\">";
       String tag3 = "<div id=\"track-info-label\">";
-      Pattern p = Pattern.compile(".*" + tag1 + "\"(.*?)\".*" + tag2 + "\\s*<.*>(.*?)</a>.*" + tag3 + "(.*?)</div>.*");
+      Pattern p = Pattern.compile(".*" + tag1 + "\"(.*?)\".*" + tag2 + "\\s*<.*?>(.*?)</a>.*" + tag3 + "(.*?)</div>.*");
       Matcher m = p.matcher(channelInfo);
       if (m.matches()) {
         String pathToImage = m.group(1);
@@ -220,11 +220,12 @@ public class IfmService extends Service implements IPlayer {
     }
 
     public void onCallStateChanged(int state,String incomingNumber){
-      switch(state){
+      switch(state) {
       case TelephonyManager.CALL_STATE_IDLE:
         mAudioManager.setStreamMute(AudioManager.STREAM_MUSIC, false);
         Log.d("IFM", "IDLE");
         break;
+      case TelephonyManager.CALL_STATE_OFFHOOK:  
       case TelephonyManager.CALL_STATE_RINGING:
         mAsyncHandler.post(new Runnable() {
           @Override
@@ -377,6 +378,7 @@ public class IfmService extends Service implements IPlayer {
 
   @Override
   public void onDestroy() {
+    mMediaPlayer.release();
     mHandler.removeCallbacks(mCyclicChannelUpdater);
     unregisterReceiver(mPhoneStateReceiver);
     stopNotification();
