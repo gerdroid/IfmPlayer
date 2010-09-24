@@ -130,7 +130,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
       }
     }
   };
-  
+
   @Override
   public void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
@@ -138,7 +138,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
     setContentView(R.layout.main);
     restoreState(savedInstanceState);
-    
+
     mChannelViewAdapter = new ChannelViewAdapter(getLayoutInflater(), this);
     setListAdapter(mChannelViewAdapter);
 
@@ -160,7 +160,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     });
 
     mVibratorService = (Vibrator) getSystemService(VIBRATOR_SERVICE);
-    
+
     getListView().setOnItemClickListener(new OnItemClickListener() {
       @Override
       public void onItemClick(AdapterView<?> view, View child, int pos, long id) {
@@ -199,9 +199,10 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     startService(new Intent(IfmService.class.getName()));
     bindService(new Intent(IfmService.class.getName()), this, Context.BIND_AUTO_CREATE);
     mShowCoverArt = PreferenceManager.getDefaultSharedPreferences(this).getBoolean("showCoverArt", false);
+    updateChannelInfos();
     super.onResume();
   }
-  
+
   @Override
   protected void onPause() {
     if (mMediaPlayerProgress != null) {
@@ -273,7 +274,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
       mChannelViewAdapter.setChannelPlaying(mPlayer.getPlayingChannel());
     }
   }
-  
+
   private void updateChannelInfos() {
     if (mPlayer != null) {
       ChannelInfo[] infos = mPlayer.getChannelInfo();
@@ -282,14 +283,14 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
           mChannelViewAdapter.updateChannelInfo(i, infos[i]);
           if (mShowCoverArt) {
             new CoverImageLoader().execute(new UpdateCoverImage(i, infos[i].getCoverUri()));
+          } else {
+            mChannelViewAdapter.updateBitmap(i, null);
           }
-        } else {
-          mChannelViewAdapter.updateBitmap(i, null);
         }
       }
     }
   }
-  
+
   @Override
   public void onServiceDisconnected(ComponentName name) {
   }
