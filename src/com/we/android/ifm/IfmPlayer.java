@@ -306,7 +306,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   @Override
   public boolean onCreateOptionsMenu(Menu menu) {
     menu.add(Menu.NONE, MENU_FLATTR, 1, "Flattr").setEnabled(true);
-    menu.add(Menu.NONE, MENU_INFO, 2, "Info").setEnabled(true);
+    menu.add(Menu.NONE, MENU_INFO, 2, "About").setEnabled(true);
     menu.add(Menu.NONE, MENU_SETTINGS, 3, "Settings").setEnabled(true);
     return super.onCreateOptionsMenu(menu);
   }
