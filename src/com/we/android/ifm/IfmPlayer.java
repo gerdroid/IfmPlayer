@@ -37,7 +37,6 @@ import android.widget.AdapterView.OnItemClickListener;
 import android.widget.AdapterView.OnItemSelectedListener;
 
 public class IfmPlayer extends ListActivity implements ServiceConnection {
-
   class UpdateCoverImage {
     int mChannel;
     Uri mCoverUri;
@@ -82,7 +81,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
   private ProgressDialog mMediaPlayerProgress;
 
-  private static final int NONE = Integer.MAX_VALUE;
   private int mSelectedChannel = Adapter.NO_SELECTION;
 
   private boolean mShowCoverArt;
@@ -161,18 +159,20 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
     mVibratorService = (Vibrator) getSystemService(VIBRATOR_SERVICE);
 
+    mPlayer = new NullPlayer();
+
     getListView().setOnItemClickListener(new OnItemClickListener() {
       @Override
       public void onItemClick(AdapterView<?> view, View child, int pos, long id) {
         vibrate();
         try {
-          if ((mPlayer != null) && mPlayer.isPlaying()) {
+          if (mPlayer.isPlaying()) {
             if (mPlayer.getPlayingChannel() == pos) {
               mSelectedChannel = Adapter.NO_SELECTION;
-              mChannelViewAdapter.setChannelPlaying(NONE);
+              mChannelViewAdapter.setChannelPlaying(Constants.NONE);
               mPlayer.stop();
             } else {
-              mChannelViewAdapter.setChannelPlaying(NONE);
+              mChannelViewAdapter.setChannelPlaying(Constants.NONE);
               mPlayer.stop();
               playChannel(pos);
             }
@@ -208,12 +208,9 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     if (mMediaPlayerProgress != null) {
       mMediaPlayerProgress.dismiss();
     }
-    if (mPlayer != null) {
-      boolean isPlaying = mPlayer.isPlaying();
-      unbindService(this);
-      if (!isPlaying) {
-        stopService(new Intent(IfmService.class.getName()));
-      }
+    unbindService(this);
+    if (mPlayer.isPlaying()) {
+      stopService(new Intent(IfmService.class.getName()));
     }
     Editor editor = getPreferences(MODE_PRIVATE).edit();
     editor.putInt("channelSelected", mSelectedChannel);
@@ -223,18 +220,16 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
   private void playChannel(int channel) throws RemoteException {
     showProgress();
-    mSelectedChannel = channel;
-    if (mPlayer != null) {
-      mPlayer.play(channel);
-    }
+    mSelectedChannel = channel; 
+    mPlayer.play(channel);
   }
 
   private void restoreState(Bundle savedInstanceState) {
     if (savedInstanceState != null) {
-      mSelectedChannel = savedInstanceState.getInt("channelSelected", NONE);
+      mSelectedChannel = savedInstanceState.getInt("channelSelected", Constants.NONE);
     } else {
       SharedPreferences preferences = getPreferences(MODE_PRIVATE);
-      mSelectedChannel = preferences.getInt("channelSelected", NONE);
+      mSelectedChannel = preferences.getInt("channelSelected", Constants.NONE);
     }
     getListView().setSelection(mSelectedChannel);
   }
@@ -256,9 +251,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     mMediaPlayerProgress.setOnCancelListener(new OnCancelListener() {
       @Override
       public void onCancel(DialogInterface dialog) {
-        if (mPlayer != null) {
-          mPlayer.cancel();
-        }
+        mPlayer.cancel();
       }
     });
     mMediaPlayerProgress.show();
@@ -278,16 +271,14 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   }
 
   private void updateChannelInfos() {
-    if (mPlayer != null) {
-      ChannelInfo[] infos = mPlayer.getChannelInfo();
-      for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
-        if (infos[i] != ChannelInfo.NO_INFO) {
-          mChannelViewAdapter.updateChannelInfo(i, infos[i]);
-          if (mShowCoverArt) {
-            new CoverImageLoader().execute(new UpdateCoverImage(i, infos[i].getCoverUri()));
-          } else {
-            mChannelViewAdapter.updateBitmap(i, null);
-          }
+    ChannelInfo[] infos = mPlayer.getChannelInfo();
+    for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
+      if (infos[i] != ChannelInfo.NO_INFO) {
+        mChannelViewAdapter.updateChannelInfo(i, infos[i]);
+        if (mShowCoverArt) {
+          new CoverImageLoader().execute(new UpdateCoverImage(i, infos[i].getCoverUri()));
+        } else {
+          mChannelViewAdapter.updateBitmap(i, null);
         }
       }
     }
