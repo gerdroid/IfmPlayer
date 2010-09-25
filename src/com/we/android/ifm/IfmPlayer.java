@@ -208,10 +208,12 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     if (mMediaPlayerProgress != null) {
       mMediaPlayerProgress.dismiss();
     }
-    boolean isPlaying = mPlayer.isPlaying();
-    unbindService(this);
-    if (!isPlaying) {
-      stopService(new Intent(IfmService.class.getName()));
+    if (mPlayer != null) {
+      boolean isPlaying = mPlayer.isPlaying();
+      unbindService(this);
+      if (!isPlaying) {
+        stopService(new Intent(IfmService.class.getName()));
+      }
     }
     Editor editor = getPreferences(MODE_PRIVATE).edit();
     editor.putInt("channelSelected", mSelectedChannel);
