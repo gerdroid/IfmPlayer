@@ -209,7 +209,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
       mMediaPlayerProgress.dismiss();
     }
     unbindService(this);
-    if (mPlayer.isPlaying()) {
+    if (!mPlayer.isPlaying()) {
       stopService(new Intent(IfmService.class.getName()));
     }
     Editor editor = getPreferences(MODE_PRIVATE).edit();
