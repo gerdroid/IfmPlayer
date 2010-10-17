@@ -55,7 +55,7 @@ public class IfmService extends Service implements IPlayer {
     private ChannelInfo queryBlackHole(int channel) {
       ChannelInfo info = ChannelInfo.NO_INFO;
       try {
-        URL url = new URL(IFM_URL + "/blackhole/homepage.php?channel=" + (channel+1));
+        URL url = new URL(Constants.IFM_URL + "/blackhole/homepage.php?channel=" + (channel+1));
         InputStream is = url.openStream();
         BufferedReader reader = new BufferedReader(new InputStreamReader(is));
         String line = reader.readLine(); // skip one line
@@ -71,8 +71,9 @@ public class IfmService extends Service implements IPlayer {
         e.printStackTrace();
       }
       return info;
-    }
 
+    }
+    
     private String getArtist(String channelInfo) {
       String tag = "<div id=\"track-info-trackname\">";
       int startSearchFrom = channelInfo.indexOf(tag);
@@ -96,7 +97,7 @@ public class IfmService extends Service implements IPlayer {
         int from = indexOf + searchterm.length() + 1;
         int to = channelInfo.indexOf("\"", from);
         String pathToImage = extractSubstring(channelInfo, from, to);
-        uri = Uri.parse(IFM_URL + pathToImage);
+        uri = Uri.parse(Constants.IFM_URL + pathToImage);
       }
       return uri;
     }
@@ -112,7 +113,6 @@ public class IfmService extends Service implements IPlayer {
 
   private static final int SECOND_IN_MICROSECONDS = 1000;
   private static final int CHANNEL_UPDATE_FREQUENCY = 20 * SECOND_IN_MICROSECONDS;
-  private static String IFM_URL = "http://intergalacticfm.com";
   private static Uri BLACKHOLE = Uri.parse("http://radio.intergalacticfm.com");
   private static final int IFM_NOTIFICATION = 0;
 
