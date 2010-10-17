@@ -37,7 +37,6 @@ import android.widget.AdapterView.OnItemClickListener;
 import android.widget.AdapterView.OnItemSelectedListener;
 
 public class IfmPlayer extends ListActivity implements ServiceConnection {
-
   class UpdateCoverImage {
     int mChannel;
     Uri mCoverUri;
@@ -82,7 +81,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
   private ProgressDialog mMediaPlayerProgress;
 
-  private static final int NONE = Integer.MAX_VALUE;
   private int mSelectedChannel = Adapter.NO_SELECTION;
 
   private boolean mShowCoverArt;
@@ -130,7 +128,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
       }
     }
   };
-  
+
   @Override
   public void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
@@ -138,15 +136,12 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
     setContentView(R.layout.main);
     restoreState(savedInstanceState);
-    
+
     mChannelViewAdapter = new ChannelViewAdapter(getLayoutInflater(), this);
     setListAdapter(mChannelViewAdapter);
 
     SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
     mShowCoverArt = preferences.getBoolean("showCoverArt", false);
-
-    startService(new Intent(IfmService.class.getName()));
-    bindService(new Intent(IfmService.class.getName()), this, Context.BIND_AUTO_CREATE);
 
     getListView().setDivider(null);
 
@@ -163,19 +158,21 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     });
 
     mVibratorService = (Vibrator) getSystemService(VIBRATOR_SERVICE);
-    
+
+    mPlayer = new NullPlayer();
+
     getListView().setOnItemClickListener(new OnItemClickListener() {
       @Override
       public void onItemClick(AdapterView<?> view, View child, int pos, long id) {
         vibrate();
         try {
-          if ((mPlayer != null) && mPlayer.isPlaying()) {
+          if (mPlayer.isPlaying()) {
             if (mPlayer.getPlayingChannel() == pos) {
               mSelectedChannel = Adapter.NO_SELECTION;
-              mChannelViewAdapter.setChannelPlaying(NONE);
+              mChannelViewAdapter.setChannelPlaying(Constants.NONE);
               mPlayer.stop();
             } else {
-              mChannelViewAdapter.setChannelPlaying(NONE);
+              mChannelViewAdapter.setChannelPlaying(Constants.NONE);
               mPlayer.stop();
               playChannel(pos);
             }
@@ -199,44 +196,40 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
   @Override
   protected void onResume() {
+    startService(new Intent(IfmService.class.getName()));
+    bindService(new Intent(IfmService.class.getName()), this, Context.BIND_AUTO_CREATE);
     mShowCoverArt = PreferenceManager.getDefaultSharedPreferences(this).getBoolean("showCoverArt", false);
-    if (mPlayer != null) {
-      updateChannelInfos();
-      mPlayer.setVisible(true);
-    }
+    updateChannelInfos();
     super.onResume();
   }
 
-  private void updateChannelInfos() {
-    if (mPlayer != null) {
-      ChannelInfo[] infos = mPlayer.getChannelInfo();
-      for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
-        if (infos[i] != ChannelInfo.NO_INFO) {
-          mChannelViewAdapter.updateChannelInfo(i, infos[i]);
-          if (mShowCoverArt) {
-            new CoverImageLoader().execute(new UpdateCoverImage(i, infos[i].getCoverUri()));
-          } else {
-            mChannelViewAdapter.updateBitmap(i, null);
-          }
-        }
-      }
+  @Override
+  protected void onPause() {
+    if (mMediaPlayerProgress != null) {
+      mMediaPlayerProgress.dismiss();
     }
+    unbindService(this);
+    if (!mPlayer.isPlaying()) {
+      stopService(new Intent(IfmService.class.getName()));
+    }
+    Editor editor = getPreferences(MODE_PRIVATE).edit();
+    editor.putInt("channelSelected", mSelectedChannel);
+    editor.commit();
+    super.onPause();
   }
 
   private void playChannel(int channel) throws RemoteException {
     showProgress();
-    mSelectedChannel = channel;
-    if (mPlayer != null) {
-      mPlayer.play(channel);
-    }
+    mSelectedChannel = channel; 
+    mPlayer.play(channel);
   }
 
   private void restoreState(Bundle savedInstanceState) {
     if (savedInstanceState != null) {
-      mSelectedChannel = savedInstanceState.getInt("channelSelected", NONE);
+      mSelectedChannel = savedInstanceState.getInt("channelSelected", Constants.NONE);
     } else {
       SharedPreferences preferences = getPreferences(MODE_PRIVATE);
-      mSelectedChannel = preferences.getInt("channelSelected", NONE);
+      mSelectedChannel = preferences.getInt("channelSelected", Constants.NONE);
     }
     getListView().setSelection(mSelectedChannel);
   }
@@ -245,23 +238,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   protected void onSaveInstanceState(Bundle outState) {
     super.onSaveInstanceState(outState);
     outState.putInt("channelSelected", mSelectedChannel);
-  }
-
-  @Override
-  protected void onDestroy() {
-    unbindService(this);
-    super.onDestroy();
-  }
-  
-  @Override
-  protected void onPause() {
-    Editor editor = getPreferences(MODE_PRIVATE).edit();
-    editor.putInt("channelSelected", mSelectedChannel);
-    editor.commit();
-    if (mPlayer != null) {
-      mPlayer.setVisible(false);
-    }
-    super.onPause();
   }
 
   private void showConnectionProblem(Context context) {
@@ -275,9 +251,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     mMediaPlayerProgress.setOnCancelListener(new OnCancelListener() {
       @Override
       public void onCancel(DialogInterface dialog) {
-        if (mPlayer != null) {
-          mPlayer.cancel();
-        }
+        mPlayer.cancel();
       }
     });
     mMediaPlayerProgress.show();
@@ -287,13 +261,26 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   public void onServiceConnected(ComponentName name, IBinder service) {
     mPlayer = ((IfmService.LocalBinder) service).getService();
     mPlayer.registerStateListener(mPlayerStateListener);
-    mPlayer.setVisible(true);
     updateChannelInfos();
     if (mPlayer.isPreparing()) {
       showProgress();
     }
     if (mPlayer.isPlaying()) {
       mChannelViewAdapter.setChannelPlaying(mPlayer.getPlayingChannel());
+    }
+  }
+
+  private void updateChannelInfos() {
+    ChannelInfo[] infos = mPlayer.getChannelInfo();
+    for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
+      if (infos[i] != ChannelInfo.NO_INFO) {
+        mChannelViewAdapter.updateChannelInfo(i, infos[i]);
+        if (mShowCoverArt) {
+          new CoverImageLoader().execute(new UpdateCoverImage(i, infos[i].getCoverUri()));
+        } else {
+          mChannelViewAdapter.updateBitmap(i, null);
+        }
+      }
     }
   }
 
@@ -312,7 +299,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   @Override
   public boolean onCreateOptionsMenu(Menu menu) {
     menu.add(Menu.NONE, MENU_FLATTR, 1, "Flattr").setEnabled(true);
-    menu.add(Menu.NONE, MENU_INFO, 2, "Info").setEnabled(true);
+    menu.add(Menu.NONE, MENU_INFO, 2, "About").setEnabled(true);
     menu.add(Menu.NONE, MENU_SETTINGS, 3, "Settings").setEnabled(true);
     return super.onCreateOptionsMenu(menu);
   }

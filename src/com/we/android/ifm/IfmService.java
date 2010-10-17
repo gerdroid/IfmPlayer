@@ -4,6 +4,8 @@ import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -58,62 +60,39 @@ public class IfmService extends Service implements IPlayer {
         URL url = new URL(Constants.IFM_URL + "/blackhole/homepage.php?channel=" + (channel+1));
         InputStream is = url.openStream();
         BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-        String line = reader.readLine(); // skip one line
-        if (!line.startsWith("<div id=\"thumb\">")) {
-          line = reader.readLine();
+        String channelInfoString = null;
+        StringBuilder builder = new StringBuilder();
+        while ((channelInfoString = reader.readLine()) != null) {
+          builder.append(channelInfoString);
         }
-        if (line == null) {
-          line = "";
-        }
-        Log.d("IFM", "blackhole response: " + line);
-        info = new ChannelInfo(getArtist(line), getLabel(line), getCoverUri(line));
+        channelInfoString = builder.toString();
+        info = createChannelInfo(channelInfoString);
       } catch (Exception e) {
         e.printStackTrace();
       }
       return info;
-
     }
-    
-    private String getArtist(String channelInfo) {
-      String tag = "<div id=\"track-info-trackname\">";
-      int startSearchFrom = channelInfo.indexOf(tag);
-      int from = channelInfo.indexOf(">", startSearchFrom + tag.length()) + 2;
-      int to = channelInfo.indexOf("</a>", from);
-      return extractSubstring(channelInfo, from, to);
-    }
-
-    private String getLabel(String channelInfo) {
-      String tag = "<div id=\"track-info-label\">";
-      int from = channelInfo.indexOf(tag) + tag.length();
-      int to = channelInfo.indexOf("</div>", from);
-      return extractSubstring(channelInfo, from, to);
-    }
-
-    private Uri getCoverUri(String channelInfo) {
-      Uri uri = Uri.EMPTY;
-      String searchterm = "img src=";
-      int indexOf = channelInfo.indexOf(searchterm);
-      if (indexOf != -1) {
-        int from = indexOf + searchterm.length() + 1;
-        int to = channelInfo.indexOf("\"", from);
-        String pathToImage = extractSubstring(channelInfo, from, to);
-        uri = Uri.parse(Constants.IFM_URL + pathToImage);
+   
+    private ChannelInfo createChannelInfo(String channelInfo) {
+      String tag1 = "img src=";
+      String tag2 = "<div id=\"track-info-trackname\">";
+      String tag3 = "<div id=\"track-info-label\">";
+      Pattern p = Pattern.compile(".*" + tag1 + "\"(.*?)\".*" + tag2 + "\\s*<.*?>(.*?)</a>.*" + tag3 + "(.*?)</div>.*");
+      Matcher m = p.matcher(channelInfo);
+      if (m.matches()) {
+        String pathToImage = m.group(1);
+        String artist = m.group(2).trim();
+        String label = m.group(3).trim();
+        Log.d("IFM", "artist: " + artist + " label: " + label);
+        return new ChannelInfo(artist, label, Uri.parse(Constants.IFM_URL + pathToImage));
       }
-      return uri;
-    }
-
-    private String extractSubstring(String str, int from, int to) {
-      if ((from < str.length()) && (to < str.length()) && (from < to)) {
-        return str.substring(from, to);
-      } else {
-        return "";
-      }
+      return ChannelInfo.NO_INFO;
     }
   }
 
   private static final int SECOND_IN_MICROSECONDS = 1000;
   private static final int CHANNEL_UPDATE_FREQUENCY = 20 * SECOND_IN_MICROSECONDS;
-  private static Uri BLACKHOLE = Uri.parse("http://radio.intergalacticfm.com");
+  private static Uri IFM_RADIO = Uri.parse("http://radio.intergalacticfm.com");
   private static final int IFM_NOTIFICATION = 0;
 
   private ChannelInfo[] mChannelInfos;
@@ -122,7 +101,6 @@ public class IfmService extends Service implements IPlayer {
   private MediaPlayer mMediaPlayer;
 
   private int mChannelPlaying = Constants.NONE; 
-  private boolean mIsVisible;
 
   private Handler mAsyncHandler;
   private Handler mHandler;
@@ -142,7 +120,7 @@ public class IfmService extends Service implements IPlayer {
   private final Runnable mCyclicChannelUpdater = new Runnable() {
     @Override
     public void run() {
-      if (mIsVisible) {
+      if (mStateListener != null) {
         for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
           new AsyncChannelQuery().execute(i);
         }
@@ -241,11 +219,12 @@ public class IfmService extends Service implements IPlayer {
     }
 
     public void onCallStateChanged(int state,String incomingNumber){
-      switch(state){
+      switch(state) {
       case TelephonyManager.CALL_STATE_IDLE:
         mAudioManager.setStreamMute(AudioManager.STREAM_MUSIC, false);
         Log.d("IFM", "IDLE");
         break;
+      case TelephonyManager.CALL_STATE_OFFHOOK:  
       case TelephonyManager.CALL_STATE_RINGING:
         mAsyncHandler.post(new Runnable() {
           @Override
@@ -303,11 +282,6 @@ public class IfmService extends Service implements IPlayer {
     mChannelPlaying = channel;
     requestState(PlayerState.PREPARING);
   }
-  
-  public void setVisible(boolean visible) {
-    mIsVisible = visible;
-    mHandler.post(mCyclicChannelUpdater);
-  }
 
   private void requestState(PlayerState state) {
     mAsyncHandler.sendEmptyMessage(state.ordinal());
@@ -319,6 +293,7 @@ public class IfmService extends Service implements IPlayer {
 
   public void registerStateListener(IPlayerStateListener stateListener) {
     mStateListener = stateListener;
+    mHandler.post(mCyclicChannelUpdater);
   }
   
   public ChannelInfo[] getChannelInfo() {
@@ -327,7 +302,7 @@ public class IfmService extends Service implements IPlayer {
 
   private void doPreparation() throws Exception {
     if (mChannelUris[mChannelPlaying] == null) {
-      mChannelUris[mChannelPlaying] = getChannelUri(BLACKHOLE, mChannelPlaying); 
+      mChannelUris[mChannelPlaying] = getChannelUri(IFM_RADIO, mChannelPlaying); 
     }
     Log.d("IFM", "channelUir: " + mChannelUris[mChannelPlaying]);
     mMediaPlayer.setDataSource(getBaseContext(), mChannelUris[mChannelPlaying]);
@@ -357,7 +332,6 @@ public class IfmService extends Service implements IPlayer {
     mAsyncHandler = new AsyncStateHandler(handlerThread.getLooper());
     
     mHandler = new Handler();
-    
     mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
     super.onCreate();
   }
@@ -403,6 +377,8 @@ public class IfmService extends Service implements IPlayer {
 
   @Override
   public void onDestroy() {
+    mMediaPlayer.release();
+    mHandler.removeCallbacks(mCyclicChannelUpdater);
     unregisterReceiver(mPhoneStateReceiver);
     stopNotification();
     super.onDestroy();
