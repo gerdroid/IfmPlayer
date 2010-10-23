@@ -18,6 +18,7 @@
         	</intent-filter>
         </service>
     <activity android:name="PreferencesEditor"></activity>
+    <activity android:name="IfmSchedule"></activity>
 	</application>
     <uses-sdk android:minSdkVersion="4" />
 

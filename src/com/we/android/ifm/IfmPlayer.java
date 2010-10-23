@@ -78,6 +78,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   private static final int MENU_FLATTR = 0;
   private static final int MENU_INFO = 1;
   private static final int MENU_SETTINGS = 2;
+  private static final int MENU_SCHEDULE = 3;
 
   private ProgressDialog mMediaPlayerProgress;
 
@@ -293,6 +294,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     menu.getItem(MENU_FLATTR).setEnabled(true);
     menu.getItem(MENU_INFO).setEnabled(true);
     menu.getItem(MENU_SETTINGS).setEnabled(true);
+    menu.getItem(MENU_SETTINGS).setEnabled(true);
     return super.onPrepareOptionsMenu(menu);
   }
 
@@ -301,6 +303,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     menu.add(Menu.NONE, MENU_FLATTR, 1, "Flattr").setEnabled(true);
     menu.add(Menu.NONE, MENU_INFO, 2, "About").setEnabled(true);
     menu.add(Menu.NONE, MENU_SETTINGS, 3, "Settings").setEnabled(true);
+    menu.add(Menu.NONE, MENU_SCHEDULE, 4, "Schedule").setEnabled(true);
     return super.onCreateOptionsMenu(menu);
   }
 
@@ -317,7 +320,11 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     case MENU_SETTINGS:
       startActivity(new Intent(this, PreferencesEditor.class));
       break;
+    case MENU_SCHEDULE:
+      startActivity(new Intent(this, IfmSchedule.class));
+      break;
     }
+    
     return super.onOptionsItemSelected(item);
   }
 
