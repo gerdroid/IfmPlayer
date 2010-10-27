@@ -65,6 +65,8 @@ public class IfmService extends Service implements IPlayer {
         while ((channelInfoString = reader.readLine()) != null) {
           builder.append(channelInfoString);
         }
+        reader.close();
+        is.close();
         channelInfoString = builder.toString();
         info = createChannelInfo(channelInfoString);
       } catch (Exception e) {
