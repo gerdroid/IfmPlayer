@@ -15,64 +15,58 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import android.app.ListActivity;
+import android.app.ProgressDialog;
+import android.graphics.Color;
+import android.os.AsyncTask;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.TextView;
-
+import android.widget.Toast;
 
 public class IfmSchedule extends ListActivity {
 
   class ScheduleItem {
+    public static final String ZERO_DAY = "";
+    
     String mTitle;
     Date mFrom;
     Date mTo;
-    
+    String mDay = ZERO_DAY;
+
     public ScheduleItem(String title, Date from, Date to) {
       mTitle = title;
       mFrom = from;
       mTo = to;
     }
     
+    public ScheduleItem(String day) {
+      mDay = day;
+    }
+
     @Override
     public String toString() {
       return mTitle + ": " + mFrom + " - " + mTo;
     }
   }
 
-  public static String IFM_URL = "http://intergalacticfm.com";
-  private ArrayList<ScheduleItem> mSchedule;
-
-  @Override
-  protected void onCreate(Bundle savedInstanceState) {
-    super.onCreate(savedInstanceState);
-    String content = "";
-    try {
-      content = getContent(new URL(Constants.IFM_URL));
-    } catch (MalformedURLException e) {
-      e.printStackTrace();
-    }
+  class ScheduleListAdapter extends BaseAdapter {
+    private int mColorCounter = 0;
     
-    getListView().setDividerHeight(3);
-    
-    List<String> events = extractEvents(matchEventList(content));
-
-    mSchedule = new ArrayList<ScheduleItem>();
-    for (String event : events) {
-      Date[] dates = extractTime(event);
-      String title = extractTitle(event);
-      mSchedule.add(new ScheduleItem(title, dates[0], dates[1]));
-//      String day = new SimpleDateFormat("EEEE").format(dates[0]);
-    }
-    
-    setListAdapter(new BaseAdapter() {
-      
-      @Override
-      public View getView(int position, View convertView, ViewGroup parent) {
-        View scheduleItemView = LayoutInflater.from(IfmSchedule.this).inflate(R.layout.schedule_item, parent, false);
-        TextView timeText = (TextView) scheduleItemView.findViewById(R.id.time);
+    @Override
+    public View getView(int position, View convertView, ViewGroup parent) {
+      View scheduleItemView = LayoutInflater.from(IfmSchedule.this).inflate(R.layout.schedule_item, parent, false);
+      ScheduleItem item = mSchedule.get(position);
+      if (item.mDay != ScheduleItem.ZERO_DAY) {
+        TextView textView = (TextView) scheduleItemView.findViewById(R.id.schedult_item);
+        textView.setText(item.mDay);
+        scheduleItemView.setBackgroundColor(mColors.get(mColorCounter % mColors.size()));
+        mColorCounter++;
+        textView.setTextColor(Color.WHITE);
+      } else {
         Date fromDate = mSchedule.get(position).mFrom;
         Date toDate = mSchedule.get(position).mTo;
         String from = "";
@@ -81,30 +75,109 @@ public class IfmSchedule extends ListActivity {
           from = new SimpleDateFormat("hh:mm").format(mSchedule.get(position).mFrom);
           to = new SimpleDateFormat("hh:mm").format(mSchedule.get(position).mTo);
         }
-        timeText.setText(from + " - " + to);
-        ((TextView) scheduleItemView.findViewById(R.id.title)).setText(mSchedule.get(position).mTitle);
-        return scheduleItemView;
+        String str = from + " - " + to + "  " + mSchedule.get(position).mTitle;
+        ((TextView) scheduleItemView.findViewById(R.id.schedult_item)).setText(str);
       }
       
-      @Override
-      public long getItemId(int position) {
-        // TODO Auto-generated method stub
-        return 0;
-      }
-      
-      @Override
-      public Object getItem(int position) {
-        // TODO Auto-generated method stub
-        return null;
-      }
-      
-      @Override
-      public int getCount() {
-        return mSchedule.size();
-      }
-    });
+      return scheduleItemView;
+    }
+
+    @Override
+    public long getItemId(int position) {
+      return 0;
+    }
+
+    @Override
+    public Object getItem(int position) {
+      return null;
+    }
+
+    @Override
+    public int getCount() {
+      return mSchedule.size();
+    }
   }
 
+  class ScheduleQuery extends AsyncTask<URL, Void, List<ScheduleItem>> {
+    @Override
+    protected List<ScheduleItem> doInBackground(URL... params) {
+      String content = getContent(params[0]);
+      List<String> events = extractEvents(matchEventList(content));
+
+      List<ScheduleItem> schedule = new ArrayList<ScheduleItem>();
+      for (String event : events) {
+        Date[] dates = extractTime(event);
+        String title = extractTitle(event);
+        schedule.add(new ScheduleItem(title, dates[0], dates[1]));
+      }
+      
+      List<ScheduleItem> superSchedule = new ArrayList<ScheduleItem>();
+      String day = "";
+      for (ScheduleItem item : schedule) {
+        String newDay = new SimpleDateFormat("EEEE").format(item.mFrom);
+        if (!newDay.equals(day)) {
+          superSchedule.add(new ScheduleItem(newDay));
+          day = newDay;
+        }
+        superSchedule.add(item);
+      }
+      
+      return superSchedule;
+    }
+
+    @Override
+    protected void onPostExecute(List<ScheduleItem> result) {
+      if (result.isEmpty()) {
+        if (mRetryCounter < 3) {
+          mRetryCounter++;
+          try {
+            new ScheduleQuery().execute(new URL(Constants.IFM_URL));
+          } catch (MalformedURLException e) {
+            e.printStackTrace();
+          }
+        } else {
+          mProgress.cancel();
+          Toast.makeText(getApplicationContext(), "Connection Problem", Toast.LENGTH_LONG).show();
+        }
+      } else {
+        mSchedule.addAll(result);
+        mProgress.cancel();
+        mScheduleListAdapter.notifyDataSetChanged();
+      }
+      super.onPostExecute(result);
+    }
+  }
+
+  private List<ScheduleItem> mSchedule = new ArrayList<ScheduleItem>();
+  private ProgressDialog mProgress;
+  private BaseAdapter mScheduleListAdapter = new ScheduleListAdapter();
+  private List<Integer> mColors = new ArrayList<Integer>();
+  private int mRetryCounter;
+
+  @Override
+  protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    getListView().setFocusable(false);
+    
+    mProgress = new ProgressDialog(this);
+    mProgress.setMessage("Loading Schedule...");
+    mProgress.show();
+    
+    mColors.add(getResources().getColor(R.color.ifm1));
+    mColors.add(getResources().getColor(R.color.ifm2));
+    mColors.add(getResources().getColor(R.color.ifm3));
+    mColors.add(getResources().getColor(R.color.ifm4));
+
+    mRetryCounter = 0;
+    try {
+      new ScheduleQuery().execute(new URL(Constants.IFM_URL));
+    } catch (MalformedURLException e) {
+      e.printStackTrace();
+    }
+
+    setListAdapter(mScheduleListAdapter);
+  }
+  
   private String getContent(URL url) {
     StringBuilder builder = new StringBuilder();
     try {
@@ -155,9 +228,13 @@ public class IfmSchedule extends ListActivity {
     String[] splits = events.split("\\|");
     String dateString = splits[0];
     String[] times = splits[1].split("-");
+    Log.d("IfmPlayer", "--> " + event);
     String dateFrom = dateString + " " + times[0].trim();
-    String dateTo = dateString + " " + times[1].trim();
-    
+    String dateTo = "";
+    if (times.length == 2) {
+      dateTo = dateString + " " + times[1].trim();;
+    }
+
     Date[] dates = new Date[2];
     try {
       dates[0] = new SimpleDateFormat("dd-MM-yyyy hh:mm").parse(dateFrom);

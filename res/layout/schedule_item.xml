@@ -4,12 +4,9 @@
      android:orientation="vertical"
      android:layout_width="fill_parent"
      android:layout_height="fill_parent">
-     <TextView android:id="@+id/time"
+     <TextView android:id="@+id/schedult_item"
          android:layout_width="wrap_content" 
          android:layout_height="wrap_content"
-         android:textSize="18dip"/>
-     <TextView android:id="@+id/title"
-         android:layout_width="wrap_content"
-         android:layout_height="wrap_content"
-         android:textSize="18dip"/>
+         android:textSize="18dip"
+         android:layout_marginBottom="4dip"/>
  </LinearLayout>
