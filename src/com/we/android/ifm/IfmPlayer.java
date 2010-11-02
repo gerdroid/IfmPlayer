@@ -242,8 +242,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   }
 
   private void showConnectionProblem(Context context) {
-    Toast toast = Toast.makeText(context, "Connection Problem", Toast.LENGTH_LONG);
-    toast.show();
+    Toast.makeText(context, "Connection Problem", Toast.LENGTH_LONG).show();
   }
 
   private void showProgress() {
