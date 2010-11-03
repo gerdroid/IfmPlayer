@@ -7,6 +7,8 @@
      <TextView android:id="@+id/schedult_item"
          android:layout_width="wrap_content" 
          android:layout_height="wrap_content"
+         android:textColor="#ff000000"
          android:textSize="18dip"
-         android:layout_marginBottom="4dip"/>
+         android:layout_marginBottom="5dip"
+         android:layout_marginTop="5dip"/>
  </LinearLayout>

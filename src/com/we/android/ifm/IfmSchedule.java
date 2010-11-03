@@ -72,8 +72,8 @@ public class IfmSchedule extends ListActivity {
         String from = "";
         String to = "";
         if ((fromDate != null) && (toDate != null)) {
-          from = new SimpleDateFormat("hh:mm").format(mSchedule.get(position).mFrom);
-          to = new SimpleDateFormat("hh:mm").format(mSchedule.get(position).mTo);
+          from = new SimpleDateFormat("H:mm").format(mSchedule.get(position).mFrom);
+          to = new SimpleDateFormat("H:mm").format(mSchedule.get(position).mTo);
         }
         String str = from + " - " + to + "  " + mSchedule.get(position).mTitle;
         ((TextView) scheduleItemView.findViewById(R.id.schedult_item)).setText(str);
@@ -158,6 +158,8 @@ public class IfmSchedule extends ListActivity {
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     getListView().setFocusable(false);
+    getListView().setBackgroundColor(0xffe0e0e0);
+    getListView().setDividerHeight(0);
     
     mProgress = new ProgressDialog(this);
     mProgress.setMessage("Loading Schedule...");

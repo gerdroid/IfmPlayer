@@ -18,7 +18,8 @@
         	</intent-filter>
         </service>
     <activity android:name="PreferencesEditor"></activity>
-    <activity android:name="IfmSchedule"></activity>
+    <activity android:name="IfmSchedule"
+    	android:screenOrientation="portrait"/>
 	</application>
     <uses-sdk android:minSdkVersion="4" />
 
