@@ -12,7 +12,7 @@ import android.widget.TextView;
 
 class ChannelViewAdapter extends BaseAdapter {
   private final int mChannelColor[] = new int[]{R.color.ifm1, R.color.ifm2, R.color.ifm3, R.color.ifm4};
-  private final String mChannelName[] = new String[]{"MurderCapital FM", "Intergalactic Classix", "The Dream Machine", "Cybernetic Broadcasting"};
+  private final String mChannelName[] = new String[]{"MurderCapital FM", "Intergalactic Classix", "The Dream Machine", "Rap Attack"};
   private int mChannelPlaying = Constants.NONE;
   private ChannelInfo[] mChannelInfos = new ChannelInfo[Constants.NUMBER_OF_CHANNELS];
   private Bitmap[] mChannelBitmaps = new Bitmap[Constants.NUMBER_OF_CHANNELS];
