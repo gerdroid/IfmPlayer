@@ -29,6 +29,8 @@ import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
+import android.os.PowerManager;
+import android.os.PowerManager.WakeLock;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.util.Log;
@@ -102,6 +104,9 @@ public class IfmService extends Service implements IPlayer {
   private static final int IFM_NOTIFICATION = 0;
 
   private ChannelInfo[] mChannelInfos;
+
+  private WifiLock mWifiLock;
+  private WakeLock mWackeLock;
   
   private Uri[] mChannelUris;
   private MediaPlayer mMediaPlayer;
@@ -140,7 +145,6 @@ public class IfmService extends Service implements IPlayer {
 
   private enum PlayerState { IDLE, PREPARING, PREPARED, RUNNING };
   private PlayerState mState;
-  private WifiLock mWifiLock;
   class AsyncStateHandler extends Handler {
 
     public AsyncStateHandler(Looper looper) {
@@ -176,7 +180,7 @@ public class IfmService extends Service implements IPlayer {
             mAsyncHandler.sendEmptyMessage(PlayerState.RUNNING.ordinal());
           } catch (Exception e) {
             if (mStateListener != null) {
-              mWifiLock.release();
+              releaseLocks();
               mChannelPlaying = Constants.NONE;
               stopNotification();
               mStateListener.onChannelError();
@@ -271,7 +275,7 @@ public class IfmService extends Service implements IPlayer {
   }
 
   public void stop() {
-    mWifiLock.release();
+    releaseLocks();
     if (mChannelPlaying != Constants.NONE) {
       mChannelPlaying = Constants.NONE;
       Log.d("IFM", "stop");
@@ -281,14 +285,14 @@ public class IfmService extends Service implements IPlayer {
   }
 
   public void cancel() {
-    mWifiLock.release();
+    releaseLocks();
     mChannelPlaying = Constants.NONE;
     Log.d("IFM", "cancel");
     requestState(PlayerState.IDLE);
   }
 
   public void play(final int channel) {
-    mWifiLock.acquire();
+    acquireLocks();
     Log.d("IFM", "play: " + channel);
     mChannelPlaying = channel;
     requestState(PlayerState.PREPARING);
@@ -337,8 +341,8 @@ public class IfmService extends Service implements IPlayer {
     for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
       mChannelInfos[i] = ChannelInfo.NO_INFO;
     }
-    
-    mWifiLock = ((WifiManager) getSystemService(WIFI_SERVICE)).createWifiLock("IntergalacticFM");
+
+    setupLock();
     
     HandlerThread handlerThread = new HandlerThread("IFMServiceWorker");
     handlerThread.start();
@@ -347,6 +351,11 @@ public class IfmService extends Service implements IPlayer {
     mHandler = new Handler();
     mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
     super.onCreate();
+  }
+  
+  private void setupLock() {
+    mWackeLock = ((PowerManager) getSystemService(POWER_SERVICE)).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "IfmWakeLock");
+    mWifiLock = ((WifiManager) getSystemService(WIFI_SERVICE)).createWifiLock("IntergalacticFM");
   }
   
   private void updateNotification() {
@@ -390,7 +399,7 @@ public class IfmService extends Service implements IPlayer {
 
   @Override
   public void onDestroy() {
-    mWifiLock.release();
+    releaseLocks();
     mMediaPlayer.release();
     mHandler.removeCallbacks(mCyclicChannelUpdater);
     unregisterReceiver(mPhoneStateReceiver);
@@ -407,5 +416,19 @@ public class IfmService extends Service implements IPlayer {
   public boolean onUnbind(Intent intent) {
     mStateListener = null;
     return super.onUnbind(intent);
+  }
+  
+  private void acquireLocks() {
+    mWifiLock.acquire();
+    mWackeLock.acquire();
+  }
+  
+  private void releaseLocks() {
+    if (mWifiLock.isHeld()) {
+      mWifiLock.release();
+    }
+    if (mWackeLock.isHeld()) {
+      mWackeLock.release();
+    }
   }
 }
