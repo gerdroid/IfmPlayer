@@ -20,6 +20,8 @@ import android.media.MediaPlayer;
 import android.media.MediaPlayer.OnBufferingUpdateListener;
 import android.media.MediaPlayer.OnErrorListener;
 import android.net.Uri;
+import android.net.wifi.WifiManager;
+import android.net.wifi.WifiManager.WifiLock;
 import android.os.AsyncTask;
 import android.os.Binder;
 import android.os.Handler;
@@ -138,6 +140,7 @@ public class IfmService extends Service implements IPlayer {
 
   private enum PlayerState { IDLE, PREPARING, PREPARED, RUNNING };
   private PlayerState mState;
+  private WifiLock mWifiLock;
   class AsyncStateHandler extends Handler {
 
     public AsyncStateHandler(Looper looper) {
@@ -173,6 +176,7 @@ public class IfmService extends Service implements IPlayer {
             mAsyncHandler.sendEmptyMessage(PlayerState.RUNNING.ordinal());
           } catch (Exception e) {
             if (mStateListener != null) {
+              mWifiLock.release();
               mChannelPlaying = Constants.NONE;
               stopNotification();
               mStateListener.onChannelError();
@@ -267,6 +271,7 @@ public class IfmService extends Service implements IPlayer {
   }
 
   public void stop() {
+    mWifiLock.release();
     if (mChannelPlaying != Constants.NONE) {
       mChannelPlaying = Constants.NONE;
       Log.d("IFM", "stop");
@@ -276,12 +281,14 @@ public class IfmService extends Service implements IPlayer {
   }
 
   public void cancel() {
+    mWifiLock.release();
     mChannelPlaying = Constants.NONE;
     Log.d("IFM", "cancel");
     requestState(PlayerState.IDLE);
   }
 
   public void play(final int channel) {
+    mWifiLock.acquire();
     Log.d("IFM", "play: " + channel);
     mChannelPlaying = channel;
     requestState(PlayerState.PREPARING);
@@ -330,6 +337,8 @@ public class IfmService extends Service implements IPlayer {
     for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
       mChannelInfos[i] = ChannelInfo.NO_INFO;
     }
+    
+    mWifiLock = ((WifiManager) getSystemService(WIFI_SERVICE)).createWifiLock("IntergalacticFM");
     
     HandlerThread handlerThread = new HandlerThread("IFMServiceWorker");
     handlerThread.start();
@@ -381,6 +390,7 @@ public class IfmService extends Service implements IPlayer {
 
   @Override
   public void onDestroy() {
+    mWifiLock.release();
     mMediaPlayer.release();
     mHandler.removeCallbacks(mCyclicChannelUpdater);
     unregisterReceiver(mPhoneStateReceiver);
