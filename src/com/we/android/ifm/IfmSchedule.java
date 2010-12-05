@@ -115,7 +115,10 @@ public class IfmSchedule extends ListActivity {
       List<ScheduleItem> superSchedule = new ArrayList<ScheduleItem>();
       String day = "";
       for (ScheduleItem item : schedule) {
-        String newDay = new SimpleDateFormat("EEEE").format(item.mFrom);
+        String newDay = day;
+        if (item.mFrom != null) {
+          newDay = new SimpleDateFormat("EEEE").format(item.mFrom);
+        }
         if (!newDay.equals(day)) {
           superSchedule.add(new ScheduleItem(newDay));
           day = newDay;
