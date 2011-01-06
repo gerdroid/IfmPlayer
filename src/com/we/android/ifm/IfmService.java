@@ -44,11 +44,13 @@ public class IfmService extends Service implements IPlayer {
 
     @Override
     protected void onPostExecute(ChannelInfo info) {
-      if (!mChannelInfos[mChannel].getArtist().equals(info.getArtist())) {
-        mChannelInfos[mChannel] = info;
-        updateNotification();
-        if (mStateListener != null) {
-          mStateListener.onChannelInfoChanged(mChannel, info);
+      if((mChannelInfos[mChannel] == ChannelInfo.NO_INFO) || (info != ChannelInfo.NO_INFO)) {
+        if (!mChannelInfos[mChannel].getArtist().equals(info.getArtist())) {
+          mChannelInfos[mChannel] = info;
+          updateNotification();
+          if (mStateListener != null) {
+            mStateListener.onChannelInfoChanged(mChannel, info);
+          }
         }
       }
       super.onPostExecute(info);
