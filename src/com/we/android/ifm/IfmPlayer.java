@@ -73,7 +73,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
   private static final int MENU_SCHEDULE = 0;
   private static final int MENU_SETTINGS = 1;
-  private static final int MENU_FLATTR = 2;
 
   private ProgressDialog mMediaPlayerProgress;
 
@@ -287,7 +286,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   public boolean onPrepareOptionsMenu(Menu menu) {
     menu.getItem(MENU_SCHEDULE).setEnabled(true);
     menu.getItem(MENU_SETTINGS).setEnabled(true);
-    menu.getItem(MENU_FLATTR).setEnabled(true);
     return super.onPrepareOptionsMenu(menu);
   }
 
@@ -295,17 +293,12 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   public boolean onCreateOptionsMenu(Menu menu) {
     menu.add(Menu.NONE, MENU_SCHEDULE, 1, "Schedule").setEnabled(true);
     menu.add(Menu.NONE, MENU_SETTINGS, 2, "Settings").setEnabled(true);
-    menu.add(Menu.NONE, MENU_FLATTR, 3, "Flattr").setEnabled(true);
     return super.onCreateOptionsMenu(menu);
   }
 
   @Override
   public boolean onOptionsItemSelected(MenuItem item) {
     switch (item.getItemId()) {
-    case MENU_FLATTR:
-      Intent viewIntent = new Intent("android.intent.action.VIEW", Uri.parse("http://flattr.com/thing/48747/Intergalactic-FM-Music-For-The-Galaxy"));
-      startActivity(viewIntent);
-      break;
     case MENU_SETTINGS:
       startActivity(new Intent(this, PreferencesEditor.class));
       break;
@@ -313,7 +306,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
       startActivity(new Intent(this, IfmSchedule.class));
       break;
     }
-    
     return super.onOptionsItemSelected(item);
   }
 }
