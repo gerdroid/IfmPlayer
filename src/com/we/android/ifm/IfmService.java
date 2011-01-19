@@ -212,14 +212,18 @@ public class IfmService extends Service implements IPlayer {
 
     @Override
     public void handleMessage(Message msg) {
-      if (msg.what == PlayerState.IDLE.ordinal()) {
-        setState(PlayerState.IDLE);
-      } else if (msg.what == PlayerState.PREPARING.ordinal()) {
-        setState(PlayerState.PREPARING);
-      } else if (msg.what == PlayerState.PREPARED.ordinal()) {
-        setState(PlayerState.PREPARED);
-      } else {
-        setState(PlayerState.RUNNING);
+      try {
+	  if (msg.what == PlayerState.IDLE.ordinal()) {
+	      setState(PlayerState.IDLE);
+	  } else if (msg.what == PlayerState.PREPARING.ordinal()) {
+	      setState(PlayerState.PREPARING);
+	  } else if (msg.what == PlayerState.PREPARED.ordinal()) {
+	      setState(PlayerState.PREPARED);
+	  } else {
+	      setState(PlayerState.RUNNING);
+	  }
+      } catch(IllegalStateException exception) {
+	  mStateListener.onChannelError();
       }
       super.handleMessage(msg);
     }
