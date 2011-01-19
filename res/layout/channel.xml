@@ -9,7 +9,9 @@
 	<LinearLayout
 		android:orientation="horizontal"
 		android:layout_width="fill_parent" 
-		android:layout_height="wrap_content">
+		android:layout_height="wrap_content"
+		android:layout_marginTop="3dip"
+		android:layout_marginBottom="3dip">
 		<TextView android:id="@+id/channel_name" 
 			android:textSize="24dip"
 			android:textColor="#ffffffff" 
@@ -19,7 +21,7 @@
 		<View android:layout_width="fill_parent"
 			android:layout_height="fill_parent"
 			android:layout_weight="1"/>
-		<ImageView android:id="@+id/playIndicator" 
+		<ImageView android:id="@+id/playindicator" 
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
 			android:layout_gravity="center"

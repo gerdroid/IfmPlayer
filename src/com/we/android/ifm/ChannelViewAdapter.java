@@ -1,8 +1,15 @@
 package com.we.android.ifm;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.AnimationDrawable;
+import android.graphics.drawable.Drawable;
+import android.os.Handler;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -18,6 +25,27 @@ class ChannelViewAdapter extends BaseAdapter {
   private Bitmap[] mChannelBitmaps = new Bitmap[Constants.NUMBER_OF_CHANNELS];
   private Bitmap[] mDefaultBitmaps = new Bitmap[Constants.NUMBER_OF_CHANNELS];
   private LayoutInflater mInflater;
+  private Random mRandom = new Random();
+  private AnimationDrawable mPeakAnimation = new AnimationDrawable();
+  private List<Drawable> mPeaks = new ArrayList<Drawable>();
+  private Handler mHandler;
+  private ImageView mPlayIndicator;
+  
+  private final Runnable mAnimator = new Runnable() {
+    public void run() {
+      int index = mRandom.nextInt(6);
+      mPeakAnimation = new AnimationDrawable();
+      mPeakAnimation.setOneShot(true);
+      for (int i=0; i<=index; i++) {
+        mPeakAnimation.addFrame(mPeaks.get(i), 100);
+      }
+      if (mPlayIndicator != null) {
+        mPlayIndicator.setBackgroundDrawable(mPeakAnimation);
+      }
+      mPeakAnimation.run();
+      mHandler.postDelayed(this, index * 100);
+    }
+  };
 
   public ChannelViewAdapter(LayoutInflater inflater, Context context) {
     mDefaultBitmaps[0] = BitmapFactory.decodeResource(context.getResources(), R.drawable.ifm1);
@@ -29,8 +57,17 @@ class ChannelViewAdapter extends BaseAdapter {
       mChannelBitmaps[i] = mDefaultBitmaps[i];
     }
     mInflater = inflater;
+    mPeaks.add(context.getResources().getDrawable(R.drawable.peak_0));
+    mPeaks.add(context.getResources().getDrawable(R.drawable.peak_1));
+    mPeaks.add(context.getResources().getDrawable(R.drawable.peak_2));
+    mPeaks.add(context.getResources().getDrawable(R.drawable.peak_3));
+    mPeaks.add(context.getResources().getDrawable(R.drawable.peak_4));
+    mPeaks.add(context.getResources().getDrawable(R.drawable.peak_5));
+    
+    mHandler = new Handler();
+    mHandler.post(mAnimator);
   }
-
+  
   public void updateChannelInfo(int channel, ChannelInfo info) {
     mChannelInfos[channel] = info;
     notifyDataSetChanged();
@@ -44,7 +81,7 @@ class ChannelViewAdapter extends BaseAdapter {
     }
     notifyDataSetChanged();
   }
-  
+
   public void setChannelPlaying(int channel) {
     mChannelPlaying = channel;
     notifyDataSetChanged();
@@ -80,11 +117,12 @@ class ChannelViewAdapter extends BaseAdapter {
   private void updateView(View channelView, int channel, ChannelInfo info) {
     channelView.setBackgroundResource(mChannelColor[channel]);
     ((TextView) channelView.findViewById(R.id.channel_name)).setText(mChannelName[channel]);
+    ImageView playIndicator = (ImageView) channelView.findViewById(R.id.playindicator);
     if (channel == mChannelPlaying) {
-      ((ImageView) channelView.findViewById(R.id.playIndicator)).setVisibility(View.VISIBLE);
-      ((ImageView) channelView.findViewById(R.id.playIndicator)).setImageResource(R.drawable.play_indicator);
+      mPlayIndicator = playIndicator;
+      playIndicator.setVisibility(View.VISIBLE);
     } else {
-      ((ImageView) channelView.findViewById(R.id.playIndicator)).setVisibility(View.INVISIBLE);
+      playIndicator.setVisibility(View.INVISIBLE);
     }
     ((ImageView) channelView.findViewById(R.id.cover)).setImageBitmap(mChannelBitmaps[channel]);
     ((TextView) channelView.findViewById(R.id.artist)).setText(info.getArtist());
