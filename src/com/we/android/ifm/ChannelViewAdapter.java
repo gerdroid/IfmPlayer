@@ -33,7 +33,7 @@ class ChannelViewAdapter extends BaseAdapter {
   
   private final Runnable mAnimator = new Runnable() {
     public void run() {
-      int index = mRandom.nextInt(6);
+      int index = mRandom.nextInt(5);
       mPeakAnimation = new AnimationDrawable();
       mPeakAnimation.setOneShot(true);
       for (int i=0; i<=index; i++) {
@@ -57,7 +57,6 @@ class ChannelViewAdapter extends BaseAdapter {
       mChannelBitmaps[i] = mDefaultBitmaps[i];
     }
     mInflater = inflater;
-    mPeaks.add(context.getResources().getDrawable(R.drawable.peak_0));
     mPeaks.add(context.getResources().getDrawable(R.drawable.peak_1));
     mPeaks.add(context.getResources().getDrawable(R.drawable.peak_2));
     mPeaks.add(context.getResources().getDrawable(R.drawable.peak_3));
