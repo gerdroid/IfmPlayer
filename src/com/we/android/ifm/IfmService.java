@@ -1,11 +1,17 @@
 package com.we.android.ifm;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.apache.http.HttpResponse;
+import org.apache.http.HttpStatus;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.DefaultHttpClient;
 
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -36,10 +42,10 @@ import android.telephony.TelephonyManager;
 import android.util.Log;
 
 public class IfmService extends Service implements IPlayer {
-  
+
   class AsyncChannelQuery extends AsyncTask<Integer, Void, ChannelInfo> {
     private int mChannel;
-
+    
     @Override
     protected ChannelInfo doInBackground(Integer... params) {
       mChannel = params[0];
@@ -62,25 +68,41 @@ public class IfmService extends Service implements IPlayer {
 
     private ChannelInfo queryBlackHole(int channel) {
       ChannelInfo info = ChannelInfo.NO_INFO;
+      DefaultHttpClient httpClient = new DefaultHttpClient();
+      HttpGet get = new HttpGet(CHANNEL_QUERY + (channel+1));
       try {
-        URL url = new URL(CHANNEL_QUERY + (channel+1));
-        InputStream is = url.openStream();
-        BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-        String channelInfoString = null;
-        StringBuilder builder = new StringBuilder();
-        while ((channelInfoString = reader.readLine()) != null) {
-          builder.append(channelInfoString);
+        HttpResponse response = httpClient.execute(get);
+        if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
+          String channelInfoString = readString(response.getEntity().getContent());
+          info = createChannelInfo(channelInfoString);
+          Log.d("IFM", "ChannelInfo: " + info);
+        } else {
+          Log.w("IFM", "http request failed: " + response.getStatusLine());
         }
-        reader.close();
-        is.close();
-        channelInfoString = builder.toString();
-        info = createChannelInfo(channelInfoString);
       } catch (Exception e) {
         e.printStackTrace();
       }
       return info;
     }
-   
+
+    private String readString(InputStream input) {
+      BufferedReader reader = new BufferedReader(new InputStreamReader(input));
+      StringBuilder builder = new StringBuilder();
+      try {
+        try {
+          String str = null;
+          while ((str = reader.readLine()) != null) {
+            builder.append(str);
+          }
+        } finally {
+          reader.close();
+        }
+      } catch (IOException e) {
+        Log.w("IFM", "Bad things happen here: " + e.toString());
+      }
+      return builder.toString();
+    }
+
     private ChannelInfo createChannelInfo(String channelInfo) {
       String tag1 = "img src=";
       String tag2 = "<div id=\"track-info-trackname\">";
@@ -91,7 +113,6 @@ public class IfmService extends Service implements IPlayer {
         String pathToImage = m.group(1);
         String artist = m.group(2).trim();
         String label = m.group(3).trim();
-        Log.d("IFM", "artist: " + artist + " label: " + label);
         return new ChannelInfo(artist, label, Uri.parse(COVERART_URL + pathToImage));
       }
       return ChannelInfo.NO_INFO;
@@ -109,7 +130,7 @@ public class IfmService extends Service implements IPlayer {
 
   private WifiLock mWifiLock;
   private WakeLock mWackeLock;
-  
+
   private Uri[] mChannelUris;
   private MediaPlayer mMediaPlayer;
 
@@ -117,7 +138,7 @@ public class IfmService extends Service implements IPlayer {
 
   private Handler mAsyncHandler;
   private Handler mHandler;
-  
+
   private NotificationManager mNotificationManager;
   private PhoneStateReceiver mPhoneStateReceiver;
   private IPlayerStateListener mStateListener;
@@ -213,17 +234,17 @@ public class IfmService extends Service implements IPlayer {
     @Override
     public void handleMessage(Message msg) {
       try {
-	  if (msg.what == PlayerState.IDLE.ordinal()) {
-	      setState(PlayerState.IDLE);
-	  } else if (msg.what == PlayerState.PREPARING.ordinal()) {
-	      setState(PlayerState.PREPARING);
-	  } else if (msg.what == PlayerState.PREPARED.ordinal()) {
-	      setState(PlayerState.PREPARED);
-	  } else {
-	      setState(PlayerState.RUNNING);
-	  }
+        if (msg.what == PlayerState.IDLE.ordinal()) {
+          setState(PlayerState.IDLE);
+        } else if (msg.what == PlayerState.PREPARING.ordinal()) {
+          setState(PlayerState.PREPARING);
+        } else if (msg.what == PlayerState.PREPARED.ordinal()) {
+          setState(PlayerState.PREPARED);
+        } else {
+          setState(PlayerState.RUNNING);
+        }
       } catch(IllegalStateException exception) {
-	  mStateListener.onChannelError();
+        mStateListener.onChannelError();
       }
       super.handleMessage(msg);
     }
@@ -316,7 +337,7 @@ public class IfmService extends Service implements IPlayer {
     mStateListener = stateListener;
     mHandler.post(mCyclicChannelUpdater);
   }
-  
+
   public ChannelInfo[] getChannelInfo() {
     return mChannelInfos;
   }
@@ -349,21 +370,22 @@ public class IfmService extends Service implements IPlayer {
     }
 
     setupLock();
-    
+
     HandlerThread handlerThread = new HandlerThread("IFMServiceWorker");
     handlerThread.start();
     mAsyncHandler = new AsyncStateHandler(handlerThread.getLooper());
-    
+
     mHandler = new Handler();
     mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
     super.onCreate();
   }
-  
+
   private void setupLock() {
     mWackeLock = ((PowerManager) getSystemService(POWER_SERVICE)).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "IfmWakeLock");
     mWifiLock = ((WifiManager) getSystemService(WIFI_SERVICE)).createWifiLock("IntergalacticFM");
   }
-  
+
   private void updateNotification() {
     if (mChannelPlaying != Constants.NONE) {
       Intent intent = new Intent(this, IfmPlayer.class);
@@ -376,7 +398,7 @@ public class IfmService extends Service implements IPlayer {
       mNotificationManager.notify(IFM_NOTIFICATION, notification);
     }
   }
-  
+
   private void stopNotification() {
     mNotificationManager.cancel(IFM_NOTIFICATION);
   }
@@ -423,12 +445,12 @@ public class IfmService extends Service implements IPlayer {
     mStateListener = null;
     return super.onUnbind(intent);
   }
-  
+
   private void acquireLocks() {
     mWifiLock.acquire();
     mWackeLock.acquire();
   }
-  
+
   private void releaseLocks() {
     if (mWifiLock.isHeld()) {
       mWifiLock.release();
