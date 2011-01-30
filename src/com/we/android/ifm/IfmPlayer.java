@@ -1,7 +1,12 @@
 package com.we.android.ifm;
 
+import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
+
+import org.apache.http.HttpResponse;
+import org.apache.http.HttpStatus;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.DefaultHttpClient;
 
 import android.app.ListActivity;
 import android.app.ProgressDialog;
@@ -22,6 +27,7 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.Vibrator;
 import android.preference.PreferenceManager;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -61,11 +67,25 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     private Bitmap getBitmap(Uri coverUri) {
       Bitmap bitmap = null;
       try {
-        URL url = new URL(coverUri.toString());
-        InputStream stream = url.openStream();
-        bitmap = BitmapFactory.decodeStream(stream);
+        DefaultHttpClient httpClient = new DefaultHttpClient();
+        HttpGet get = new HttpGet(coverUri.toString());
+        HttpResponse response = httpClient.execute(get);
+        if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
+          InputStream is = response.getEntity().getContent();
+          try {
+            try {
+              bitmap = BitmapFactory.decodeStream(is);
+            } finally {
+              is.close();
+            }
+          } catch(IOException e) {
+            Log.w("IFM", "problems decoding Coverart: " + e.toString());
+          }
+        } else {
+          Log.w("IFM", "ServerResponse: " + response.getStatusLine());
+        }
       } catch (Exception e) {
-        e.printStackTrace();
+        Log.w("IFM", e.toString());
       }
       return bitmap;
     }
