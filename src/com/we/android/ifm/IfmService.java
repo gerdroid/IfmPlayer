@@ -8,10 +8,23 @@ import java.net.URL;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
+import org.apache.http.HttpVersion;
+import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.conn.ClientConnectionManager;
+import org.apache.http.conn.scheme.PlainSocketFactory;
+import org.apache.http.conn.scheme.Scheme;
+import org.apache.http.conn.scheme.SchemeRegistry;
+import org.apache.http.conn.ssl.SSLSocketFactory;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
+import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.HttpConnectionParams;
+import org.apache.http.params.HttpParams;
+import org.apache.http.params.HttpProtocolParams;
 
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -68,14 +81,16 @@ public class IfmService extends Service implements IPlayer {
 
     private ChannelInfo queryBlackHole(int channel) {
       ChannelInfo info = ChannelInfo.NO_INFO;
-      DefaultHttpClient httpClient = new DefaultHttpClient();
       HttpGet get = new HttpGet(CHANNEL_QUERY + (channel+1));
       try {
-        HttpResponse response = httpClient.execute(get);
+        HttpResponse response = mHttpClient.execute(get);
         if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
-          String channelInfoString = readString(response.getEntity().getContent());
-          info = createChannelInfo(channelInfoString);
-          Log.d("IFM", "ChannelInfo: " + info);
+          HttpEntity entity = response.getEntity();
+          if (entity != null) {
+            String channelInfoString = readString(entity.getContent());
+            info = createChannelInfo(channelInfoString);
+            Log.d("IFM", "ChannelInfo: " + info);
+          }
         } else {
           Log.w("IFM", "http request failed: " + response.getStatusLine());
         }
@@ -142,6 +157,8 @@ public class IfmService extends Service implements IPlayer {
   private NotificationManager mNotificationManager;
   private PhoneStateReceiver mPhoneStateReceiver;
   private IPlayerStateListener mStateListener;
+  
+  private HttpClient mHttpClient;
 
   class LocalBinder extends Binder {
     public IPlayer getService() {
@@ -378,7 +395,19 @@ public class IfmService extends Service implements IPlayer {
     mHandler = new Handler();
     mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
+    setupHttpClient();
     super.onCreate();
+  }
+  
+  private void setupHttpClient() {
+    SchemeRegistry schemeRegistry = new SchemeRegistry();
+    schemeRegistry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
+    schemeRegistry.register(new Scheme("https", SSLSocketFactory.getSocketFactory(), 443));
+    HttpParams params = new BasicHttpParams();
+    HttpConnectionParams.setConnectionTimeout(params, 20 * 1000);
+    HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);
+    ClientConnectionManager cm = new ThreadSafeClientConnManager(params, schemeRegistry);
+    mHttpClient = new DefaultHttpClient(cm, params);
   }
 
   private void setupLock() {
