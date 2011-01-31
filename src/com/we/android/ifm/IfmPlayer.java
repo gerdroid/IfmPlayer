@@ -3,6 +3,7 @@ package com.we.android.ifm;
 import java.io.IOException;
 import java.io.InputStream;
 
+import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.HttpGet;
@@ -71,15 +72,18 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
         HttpGet get = new HttpGet(coverUri.toString());
         HttpResponse response = httpClient.execute(get);
         if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
-          InputStream is = response.getEntity().getContent();
-          try {
+          HttpEntity entity = response.getEntity();
+          if (entity != null) {
+            InputStream is = entity.getContent();
             try {
-              bitmap = BitmapFactory.decodeStream(is);
-            } finally {
-              is.close();
+              try {
+                bitmap = BitmapFactory.decodeStream(is);
+              } finally {
+                is.close();
+              }
+            } catch(IOException e) {
+              Log.w("IFM", "problems decoding Coverart: " + e.toString());
             }
-          } catch(IOException e) {
-            Log.w("IFM", "problems decoding Coverart: " + e.toString());
           }
         } else {
           Log.w("IFM", "ServerResponse: " + response.getStatusLine());
