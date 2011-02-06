@@ -55,7 +55,7 @@ import android.telephony.TelephonyManager;
 import android.util.Log;
 
 public class IfmService extends Service implements IPlayer {
-
+    
   class AsyncChannelQuery extends AsyncTask<Integer, Void, ChannelInfo> {
     private int mChannel;
     
@@ -71,9 +71,7 @@ public class IfmService extends Service implements IPlayer {
         if (!mChannelInfos[mChannel].getArtist().equals(info.getArtist())) {
           mChannelInfos[mChannel] = info;
           updateNotification();
-          if (mStateListener != null) {
-            mStateListener.onChannelInfoChanged(mChannel, info);
-          }
+          mStateListener.onChannelInfoChanged(mChannel, info);
         }
       }
       super.onPostExecute(info);
@@ -156,7 +154,20 @@ public class IfmService extends Service implements IPlayer {
 
   private NotificationManager mNotificationManager;
   private PhoneStateReceiver mPhoneStateReceiver;
-  private IPlayerStateListener mStateListener;
+  private final IPlayerStateListener mNullPlayerStateListener = new IPlayerStateListener() {
+    @Override
+    public void onChannelStarted(int channel) {
+    }
+    
+    @Override
+    public void onChannelInfoChanged(int channel, ChannelInfo channelInfo) {
+    }
+    
+    @Override
+    public void onChannelError() {
+    }
+  };
+  private IPlayerStateListener mStateListener = mNullPlayerStateListener;
   
   private HttpClient mHttpClient;
 
@@ -171,7 +182,7 @@ public class IfmService extends Service implements IPlayer {
   private final Runnable mCyclicChannelUpdater = new Runnable() {
     @Override
     public void run() {
-      if (mStateListener != null) {
+      if (mStateListener != mNullPlayerStateListener) {
         for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
           new AsyncChannelQuery().execute(i);
         }
@@ -219,12 +230,10 @@ public class IfmService extends Service implements IPlayer {
             mMediaPlayer.prepare();
             mAsyncHandler.sendEmptyMessage(PlayerState.RUNNING.ordinal());
           } catch (Exception e) {
-            if (mStateListener != null) {
-              releaseLocks();
-              mChannelPlaying = Constants.NONE;
-              stopNotification();
-              mStateListener.onChannelError();
-            }
+            releaseLocks();
+            mChannelPlaying = Constants.NONE;
+            stopNotification();
+            mStateListener.onChannelError();
             mAsyncHandler.sendEmptyMessage(PlayerState.IDLE.ordinal());
             Log.e("IFM", "connection error: " + e.getMessage());;
           }
@@ -235,10 +244,8 @@ public class IfmService extends Service implements IPlayer {
       } else if (requestedState == PlayerState.RUNNING) {
         if (mState == PlayerState.PREPARED) {
           mMediaPlayer.start();
-          if (mStateListener != null) {
-            updateNotification();
-            mStateListener.onChannelStarted(mChannelPlaying);
-          }
+          updateNotification();
+          mStateListener.onChannelStarted(mChannelPlaying);
         } else {
           Log.d("IFM", "throw away: " + requestedState);
           return;
@@ -471,16 +478,18 @@ public class IfmService extends Service implements IPlayer {
 
   @Override
   public boolean onUnbind(Intent intent) {
-    mStateListener = null;
+    mStateListener = mNullPlayerStateListener;
     return super.onUnbind(intent);
   }
 
   private void acquireLocks() {
+    Log.d("IFM", "acquire Lock");  
     mWifiLock.acquire();
     mWackeLock.acquire();
   }
 
   private void releaseLocks() {
+    Log.d("IFM", "release Lock");  
     if (mWifiLock.isHeld()) {
       mWifiLock.release();
     }
