@@ -6,8 +6,19 @@ import java.io.InputStream;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
+import org.apache.http.HttpVersion;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.conn.ClientConnectionManager;
+import org.apache.http.conn.scheme.PlainSocketFactory;
+import org.apache.http.conn.scheme.Scheme;
+import org.apache.http.conn.scheme.SchemeRegistry;
+import org.apache.http.conn.ssl.SSLSocketFactory;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
+import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.HttpConnectionParams;
+import org.apache.http.params.HttpParams;
+import org.apache.http.params.HttpProtocolParams;
 
 import android.app.ListActivity;
 import android.app.ProgressDialog;
@@ -68,9 +79,9 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     private Bitmap getBitmap(Uri coverUri) {
       Bitmap bitmap = null;
       try {
-        DefaultHttpClient httpClient = new DefaultHttpClient();
+        mHttpClient = new DefaultHttpClient();
         HttpGet get = new HttpGet(coverUri.toString());
-        HttpResponse response = httpClient.execute(get);
+        HttpResponse response = mHttpClient.execute(get);
         if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
           HttpEntity entity = response.getEntity();
           if (entity != null) {
@@ -106,6 +117,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   private Vibrator mVibratorService;
   private ChannelViewAdapter mChannelViewAdapter;
   private IPlayer mPlayer;
+  private DefaultHttpClient mHttpClient;
 
   private final IPlayerStateListener mPlayerStateListener = new IPlayerStateListener() {
     @Override
@@ -159,9 +171,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     mChannelViewAdapter = new ChannelViewAdapter(getLayoutInflater(), this);
     setListAdapter(mChannelViewAdapter);
 
-    SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(this);
-    mShowCoverArt = preferences.getBoolean("showCoverArt", false);
-
     getListView().setDivider(null);
 
     getListView().setOnItemSelectedListener(new OnItemSelectedListener() {
@@ -211,13 +220,32 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
         }
       }
     });
+    
+    setupHttpClient();
+  }
+  
+  private void setupHttpClient() {
+    SchemeRegistry schemeRegistry = new SchemeRegistry();
+    schemeRegistry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
+    schemeRegistry.register(new Scheme("https", SSLSocketFactory.getSocketFactory(), 443));
+    HttpParams params = new BasicHttpParams();
+    HttpConnectionParams.setConnectionTimeout(params, 20 * 1000);
+    HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);
+    ClientConnectionManager cm = new ThreadSafeClientConnManager(params, schemeRegistry);
+    mHttpClient = new DefaultHttpClient(cm, params);
   }
 
   @Override
   protected void onResume() {
     startService(new Intent(IfmService.class.getName()));
     bindService(new Intent(IfmService.class.getName()), this, Context.BIND_AUTO_CREATE);
-    mShowCoverArt = PreferenceManager.getDefaultSharedPreferences(this).getBoolean("showCoverArt", false);
+    
+    boolean showCoverArtPref = PreferenceManager.getDefaultSharedPreferences(this).getBoolean("showCoverArt", false);
+    if (showCoverArtPref && !mShowCoverArt) {
+      Toast.makeText(getApplicationContext(), "Loading Coverart...", 5000).show();
+    }
+    mShowCoverArt = showCoverArtPref;
+    
     updateChannelInfos();
     super.onResume();
   }
@@ -235,6 +263,12 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     editor.putInt("channelSelected", mSelectedChannel);
     editor.commit();
     super.onPause();
+  }
+  
+  @Override
+  protected void onDestroy() {
+    mHttpClient.getConnectionManager().shutdown();
+    super.onDestroy();
   }
 
   private void playChannel(int channel) throws RemoteException {
@@ -257,6 +291,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
   protected void onSaveInstanceState(Bundle outState) {
     super.onSaveInstanceState(outState);
     outState.putInt("channelSelected", mSelectedChannel);
+    outState.putBoolean("showCoverArt", mShowCoverArt);
   }
 
   private void showConnectionProblem(Context context) {
