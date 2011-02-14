@@ -1,11 +1,5 @@
 package com.we.android.ifm;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -13,6 +7,12 @@ import java.util.Date;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.HttpStatus;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.DefaultHttpClient;
 
 import android.app.ListActivity;
 import android.app.ProgressDialog;
@@ -32,7 +32,7 @@ public class IfmSchedule extends ListActivity {
 
   class ScheduleItem {
     public static final String ZERO_DAY = "";
-    
+
     String mTitle;
     Date mFrom;
     Date mTo;
@@ -43,7 +43,7 @@ public class IfmSchedule extends ListActivity {
       mFrom = from;
       mTo = to;
     }
-    
+
     public ScheduleItem(String day) {
       mDay = day;
     }
@@ -56,7 +56,7 @@ public class IfmSchedule extends ListActivity {
 
   class ScheduleListAdapter extends BaseAdapter {
     private int mColorCounter = 0;
-    
+
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
       View scheduleItemView = LayoutInflater.from(IfmSchedule.this).inflate(R.layout.schedule_item, parent, false);
@@ -79,7 +79,7 @@ public class IfmSchedule extends ListActivity {
         String str = from + " - " + to + "  " + mSchedule.get(position).mTitle;
         ((TextView) scheduleItemView.findViewById(R.id.schedult_item)).setText(str);
       }
-      
+
       return scheduleItemView;
     }
 
@@ -99,11 +99,10 @@ public class IfmSchedule extends ListActivity {
     }
   }
 
-  class ScheduleQuery extends AsyncTask<URL, Void, List<ScheduleItem>> {
+  class ScheduleQuery extends AsyncTask<String, Void, List<ScheduleItem>> {
     @Override
-    protected List<ScheduleItem> doInBackground(URL... params) {
-      String content = getContent(params[0]);
-      List<String> events = extractEvents(matchEventList(content));
+    protected List<ScheduleItem> doInBackground(String... params) {
+      List<String> events = extractEvents(matchEventList(getContent(params[0])));
 
       List<ScheduleItem> schedule = new ArrayList<ScheduleItem>();
       for (String event : events) {
@@ -111,7 +110,7 @@ public class IfmSchedule extends ListActivity {
         String title = extractTitle(event);
         schedule.add(new ScheduleItem(title, dates[0], dates[1]));
       }
-      
+
       List<ScheduleItem> superSchedule = new ArrayList<ScheduleItem>();
       String day = "";
       for (ScheduleItem item : schedule) {
@@ -125,30 +124,35 @@ public class IfmSchedule extends ListActivity {
         }
         superSchedule.add(item);
       }
-      
+
       return superSchedule;
     }
 
     @Override
     protected void onPostExecute(List<ScheduleItem> result) {
-      if (result.isEmpty()) {
-        if (mRetryCounter < 3) {
-          mRetryCounter++;
-          try {
-            new ScheduleQuery().execute(new URL(Constants.IFM_URL));
-          } catch (MalformedURLException e) {
-            e.printStackTrace();
+      mSchedule.addAll(result);
+      mProgress.cancel();
+      mScheduleListAdapter.notifyDataSetChanged();
+      super.onPostExecute(result);
+    }
+    
+    private String getContent(String url) {
+      String content = "";
+      HttpGet get = new HttpGet(url);
+      try {
+        HttpResponse response = mHttpClient.execute(get);
+        if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
+          HttpEntity entity = response.getEntity();
+          if (entity != null) {
+            content = Util.readString(entity.getContent());
           }
         } else {
-          mProgress.cancel();
           Toast.makeText(getApplicationContext(), "Connection Problem", Toast.LENGTH_LONG).show();
         }
-      } else {
-        mSchedule.addAll(result);
-        mProgress.cancel();
-        mScheduleListAdapter.notifyDataSetChanged();
+      } catch (Exception e) {
+        e.printStackTrace();
       }
-      super.onPostExecute(result);
+      return content;
     }
   }
 
@@ -156,7 +160,7 @@ public class IfmSchedule extends ListActivity {
   private ProgressDialog mProgress;
   private BaseAdapter mScheduleListAdapter = new ScheduleListAdapter();
   private List<Integer> mColors = new ArrayList<Integer>();
-  private int mRetryCounter;
+  private DefaultHttpClient mHttpClient;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -165,39 +169,25 @@ public class IfmSchedule extends ListActivity {
     getListView().setFocusable(false);
     getListView().setBackgroundColor(0xffe0e0e0);
     getListView().setDividerHeight(0);
-    
+
     mProgress = new ProgressDialog(this);
     mProgress.setMessage("Loading Schedule...");
     mProgress.show();
-    
+
     mColors.add(getResources().getColor(R.color.ifm1));
     mColors.add(getResources().getColor(R.color.ifm2));
     mColors.add(getResources().getColor(R.color.ifm3));
     mColors.add(getResources().getColor(R.color.ifm4));
 
-    mRetryCounter = 0;
-    try {
-      new ScheduleQuery().execute(new URL(Constants.IFM_URL));
-    } catch (MalformedURLException e) {
-      e.printStackTrace();
-    }
-
+    mHttpClient = new DefaultHttpClient();
+    new ScheduleQuery().execute(Constants.IFM_URL);
     setListAdapter(mScheduleListAdapter);
   }
   
-  private String getContent(URL url) {
-    StringBuilder builder = new StringBuilder();
-    try {
-      InputStream stream = url.openStream();
-      BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(stream));
-      String line = null;
-      while ((line = bufferedReader.readLine()) != null) {
-        builder.append(line);
-      }
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-    return builder.toString();
+  @Override
+  protected void onDestroy() {
+    mHttpClient.getConnectionManager().shutdown();
+    super.onDestroy();
   }
 
   private String matchEventList(String content) {

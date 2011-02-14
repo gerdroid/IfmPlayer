@@ -1,8 +1,6 @@
 package com.we.android.ifm;
 
 import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.regex.Matcher;
@@ -85,7 +83,7 @@ public class IfmService extends Service implements IPlayer {
         if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
           HttpEntity entity = response.getEntity();
           if (entity != null) {
-            String channelInfoString = readString(entity.getContent());
+            String channelInfoString = Util.readString(entity.getContent());
             info = createChannelInfo(channelInfoString);
             Log.d("IFM", "ChannelInfo: " + info);
           }
@@ -96,24 +94,6 @@ public class IfmService extends Service implements IPlayer {
         e.printStackTrace();
       }
       return info;
-    }
-
-    private String readString(InputStream input) {
-      BufferedReader reader = new BufferedReader(new InputStreamReader(input));
-      StringBuilder builder = new StringBuilder();
-      try {
-        try {
-          String str = null;
-          while ((str = reader.readLine()) != null) {
-            builder.append(str);
-          }
-        } finally {
-          reader.close();
-        }
-      } catch (IOException e) {
-        Log.w("IFM", "Bad things happen here: " + e.toString());
-      }
-      return builder.toString();
     }
 
     private ChannelInfo createChannelInfo(String channelInfo) {
@@ -468,6 +448,7 @@ public class IfmService extends Service implements IPlayer {
     mHandler.removeCallbacks(mCyclicChannelUpdater);
     unregisterReceiver(mPhoneStateReceiver);
     stopNotification();
+    mHttpClient.getConnectionManager().shutdown();
     super.onDestroy();
   }
 
