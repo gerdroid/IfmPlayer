@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:id="@+id/rip"
+	android:orientation="vertical"
+	android:layout_width="fill_parent"
+	android:layout_height="wrap_content"
+	android:background="#00000000"
+	android:focusable="false">
+	<TextView  
+		android:textSize="24dip"
+		android:textColor="#ffffffff" 
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content" 
+		android:layout_marginLeft="5dip"
+		android:text="R.I.P."/>
+	<View android:background="#ffffff"
+		android:layout_width="fill_parent"
+		android:layout_height="1dip"
+		android:gravity="center_horizontal" />
+	<LinearLayout android:id="@+id/wtf" 
+		android:orientation="horizontal"
+		android:layout_width="fill_parent"
+		android:layout_height="wrap_content"
+		android:layout_marginTop="8dip"
+		android:layout_marginBottom="8dip">
+		<ImageView
+			android:background="@drawable/cbs_rip" 
+			android:layout_width="70dip"
+			android:layout_height="70dip" 
+			android:layout_marginLeft="10dip"/>
+		<ImageView
+			android:background="@drawable/rapattack_rip"
+			android:layout_width="70dip"
+			android:layout_height="70dip" 
+			android:layout_marginLeft="20dip"/>
+		<TextView  
+			android:textSize="15dip"
+			android:textColor="#ffffff" 
+			android:layout_width="fill_parent"
+			android:layout_height="wrap_content"
+			android:layout_gravity="center_vertical"
+			android:layout_marginLeft="20dip"
+			android:text="stay tuned..."/>
+	</LinearLayout>
+</LinearLayout>
+	
