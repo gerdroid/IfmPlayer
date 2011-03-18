@@ -421,6 +421,7 @@ public class IfmService extends Service implements IPlayer {
 
   private void setupMediaPlayer() {
     mMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+    mMediaPlayer.setWakeMode(getApplicationContext(), PowerManager.PARTIAL_WAKE_LOCK);
     mMediaPlayer.setOnErrorListener(new OnErrorListener() {
       @Override
       public boolean onError(MediaPlayer mp, int what, int extra) {
