@@ -108,12 +108,12 @@ class ChannelViewAdapter extends BaseAdapter {
 	}
 	return true;
     }
-    
+
     @Override
     public boolean areAllItemsEnabled() {
-        return false;
+	return false;
     }
-    
+
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
 	View channelView;
