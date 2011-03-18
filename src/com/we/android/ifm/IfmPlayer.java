@@ -72,7 +72,9 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
     @Override
     protected void onPostExecute(Bitmap result) {
-      mChannelViewAdapter.updateBitmap(mChannel, result);
+      if (mShowCoverArt) {
+        mChannelViewAdapter.updateBitmap(mChannel, result);
+      }
       super.onPostExecute(result);
     }
 
