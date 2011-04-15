@@ -185,6 +185,7 @@ public class IfmService extends Service implements IPlayer {
 
 	private PlayerState mState;
 	private PushNotificationReceiver mPushNotificationReceiver;
+	private boolean mUsePushNotification;
 
 	class AsyncStateHandler extends Handler {
 
@@ -357,10 +358,11 @@ public class IfmService extends Service implements IPlayer {
 	public void registerStateListener(IPlayerStateListener stateListener) {
 		mStateListener = stateListener;
 
-		boolean usePush = true;
-		if (usePush) {
-			mPushNotificationReceiver = new PushNotificationReceiver(this);
-			mPushNotificationReceiver.start();
+		if (mUsePushNotification) {
+			if (mPushNotificationReceiver == null) {
+				mPushNotificationReceiver = new PushNotificationReceiver(this);
+				mPushNotificationReceiver.start();
+			}
 		} else {
 			mHandler.post(mCyclicChannelUpdater);
 		}
@@ -374,6 +376,11 @@ public class IfmService extends Service implements IPlayer {
 		mChannelInfos[channelId] = info;
 		updateNotification();
 		mStateListener.onChannelInfoChanged(channelId, info);
+	}
+	
+	public void pushNotificationErrorOccurred() {
+		mUsePushNotification = false;
+		mHandler.post(mCyclicChannelUpdater);
 	}
 
 	private void doPreparation() throws Exception {
@@ -419,6 +426,8 @@ public class IfmService extends Service implements IPlayer {
 		mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
 		setupHttpClient();
+		
+		mUsePushNotification = true;
 		super.onCreate();
 	}
 
@@ -507,7 +516,8 @@ public class IfmService extends Service implements IPlayer {
 	public boolean onUnbind(Intent intent) {
 		mStateListener = mNullPlayerStateListener;
 		if (mPushNotificationReceiver != null) {
-			mPushNotificationReceiver.stop();
+			mPushNotificationReceiver.stopListening();
+			mPushNotificationReceiver = null;
 		}
 		return super.onUnbind(intent);
 	}

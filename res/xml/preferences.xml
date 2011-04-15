@@ -3,6 +3,5 @@
   xmlns:android="http://schemas.android.com/apk/res/android">
 	<CheckBoxPreference android:title="Vibrate on selection" android:defaultValue="true" android:key="vibrate" android:persistent="true"></CheckBoxPreference>
 	<CheckBoxPreference android:title="Show coverart" android:defaultValue="false" android:key="showCoverArt" android:persistent="true"></CheckBoxPreference>
-	<CheckBoxPreference android:title="Use push notifications" android:defaultValue="false" android:key="pushNotifications" android:persistent="true"></CheckBoxPreference>
 </PreferenceScreen>
 

@@ -12,48 +12,54 @@ import org.json.JSONObject;
 import android.net.Uri;
 import android.util.Log;
 
-public class PushNotificationReceiver implements Runnable {
+public class PushNotificationReceiver extends Thread {
 
-	private boolean mIsRunning;
 	private IfmService mService;
+	private Socket mSocket;
 
 	public PushNotificationReceiver(IfmService service) {
 		mService = service;
 	}
 	
-	public void start()
+	public void run()
 	{
-		new Thread(this).start();
-	}
-	
-	@Override
-	public void run() {
-		mIsRunning = true;
 		listen();
 	}
-
-	public void stop() {
-		mIsRunning = false;
+	
+	public void stopListening() {
+		Log.w("IFM", "Stopping...");
+		try {
+			interrupt();
+			if (mSocket != null) {
+				mSocket.close();
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		Log.w("IFM", "Stopped.");
 	}
 		
 	private void listen() {
 		try {
 			Log.w("IFM", "Trying to connect...");
-			Socket socket = new Socket("ec2-79-125-57-87.eu-west-1.compute.amazonaws.com", 8142);
+			mSocket = new Socket("ec2-79-125-57-87.eu-west-1.compute.amazonaws.com", 8142);
 
 			BufferedReader input = new BufferedReader(new InputStreamReader(
-					socket.getInputStream()), 1024);
+					mSocket.getInputStream()), 1024);
 
 			String line = null;
-			while (((line = input.readLine()) != null) && (mIsRunning)) {
+			while (((line = input.readLine()) != null) && (!isInterrupted())) {
 				parseJson(line);				
 			}
-
-			socket.close();
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
+			mSocket.close();
+		} catch (Exception e) {
+			if (isInterrupted()) {
+				Log.w("IFM", "Interrupted - Socket closed");
+			} else {
+				e.printStackTrace();
+				Log.w("IFM", "Notification error occurred");
+				mService.pushNotificationErrorOccurred();
+			}
 		}
 	}
 	
@@ -67,12 +73,6 @@ public class PushNotificationReceiver implements Runnable {
 			String track = channelDetails.getString("track").trim();
 			String label = channelDetails.getString("label").trim();
 
-			Log.w("IFM", "Channel "+channelIndex+": ");
-			Log.w("IFM", "   path: "+path);
-			Log.w("IFM", "   track: "+track);
-			Log.w("IFM", "   label: "+label);
-			
-			
 			ChannelInfo infoObject = new ChannelInfo(track, label, Uri.parse(IfmService.COVERART_URL + path));
 			mService.updateChannelInfo(channelIndex, infoObject);
 		} catch (JSONException e) {
