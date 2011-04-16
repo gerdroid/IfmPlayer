@@ -6,19 +6,8 @@ import java.io.InputStream;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
-import org.apache.http.HttpVersion;
+import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.conn.ClientConnectionManager;
-import org.apache.http.conn.scheme.PlainSocketFactory;
-import org.apache.http.conn.scheme.Scheme;
-import org.apache.http.conn.scheme.SchemeRegistry;
-import org.apache.http.conn.ssl.SSLSocketFactory;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
-import org.apache.http.params.BasicHttpParams;
-import org.apache.http.params.HttpConnectionParams;
-import org.apache.http.params.HttpParams;
-import org.apache.http.params.HttpProtocolParams;
 
 import android.app.ListActivity;
 import android.app.ProgressDialog;
@@ -81,7 +70,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 	private Bitmap getBitmap(Uri coverUri) {
 	    Bitmap bitmap = null;
 	    try {
-		mHttpClient = new DefaultHttpClient();
 		HttpGet get = new HttpGet(coverUri.toString());
 		HttpResponse response = mHttpClient.execute(get);
 		if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
@@ -119,7 +107,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
     private Vibrator mVibratorService;
     private ChannelViewAdapter mChannelViewAdapter;
     private IPlayer mPlayer;
-    private DefaultHttpClient mHttpClient;
+    private HttpClient mHttpClient;
 
     private final IPlayerStateListener mPlayerStateListener = new IPlayerStateListener() {
 	@Override
@@ -223,18 +211,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 	    }
 	});
 
-	setupHttpClient();
-    }
-
-    private void setupHttpClient() {
-	SchemeRegistry schemeRegistry = new SchemeRegistry();
-	schemeRegistry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
-	schemeRegistry.register(new Scheme("https", SSLSocketFactory.getSocketFactory(), 443));
-	HttpParams params = new BasicHttpParams();
-	HttpConnectionParams.setConnectionTimeout(params, 20 * 1000);
-	HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);
-	ClientConnectionManager cm = new ThreadSafeClientConnManager(params, schemeRegistry);
-	mHttpClient = new DefaultHttpClient(cm, params);
+	mHttpClient = Util.createThreadSaveHttpClient(20);
     }
 
     @Override
