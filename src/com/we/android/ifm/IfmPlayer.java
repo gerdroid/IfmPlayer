@@ -138,14 +138,22 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 	}
 
 	@Override
-	public void onChannelInfoChanged(int channel, ChannelInfo channelInfo) {
+	public void onChannelInfoChanged(final int channel, final ChannelInfo channelInfo) {
 	    if (channelInfo != ChannelInfo.NO_INFO) {
-		if (mChannelViewAdapter != null) {
-		    mChannelViewAdapter.updateChannelInfo(channel, channelInfo);
-		}
-		if (mShowCoverArt) {
-		    new CoverImageLoader().execute(new UpdateCoverImage(channel, channelInfo.getCoverUri()));
-		}
+	    	runOnUiThread(new Runnable() {
+			    @Override
+			    public void run() {
+			    	if (mChannelViewAdapter != null) {
+			    		mChannelViewAdapter.updateChannelInfo(channel, channelInfo);
+			    	}
+			    	if (mShowCoverArt) {
+			    		new CoverImageLoader().execute(new UpdateCoverImage(channel, channelInfo.getCoverUri()));
+			    	}
+			    }
+			});
+	    	
+	    	
+	    	
 	    }
 	}
     };
