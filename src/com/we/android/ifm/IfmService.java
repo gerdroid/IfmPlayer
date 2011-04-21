@@ -9,8 +9,20 @@ import java.util.regex.Pattern;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
+import org.apache.http.HttpVersion;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.conn.ClientConnectionManager;
+import org.apache.http.conn.scheme.PlainSocketFactory;
+import org.apache.http.conn.scheme.Scheme;
+import org.apache.http.conn.scheme.SchemeRegistry;
+import org.apache.http.conn.ssl.SSLSocketFactory;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
+import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.HttpConnectionParams;
+import org.apache.http.params.HttpParams;
+import org.apache.http.params.HttpProtocolParams;
 
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -22,6 +34,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.media.MediaPlayer.OnBufferingUpdateListener;
 import android.media.MediaPlayer.OnErrorListener;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
@@ -368,8 +381,20 @@ public class IfmService extends Service implements IPlayer {
 
 	mHandler = new Handler();
 	mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-	mHttpClient = Util.createThreadSaveHttpClient(20);
+
+	setupHttpClient();
 	super.onCreate();
+    }
+
+    private void setupHttpClient() {
+	SchemeRegistry schemeRegistry = new SchemeRegistry();
+	schemeRegistry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
+	schemeRegistry.register(new Scheme("https", SSLSocketFactory.getSocketFactory(), 443));
+	HttpParams params = new BasicHttpParams();
+	HttpConnectionParams.setConnectionTimeout(params, 20 * 1000);
+	HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);
+	ClientConnectionManager cm = new ThreadSafeClientConnManager(params, schemeRegistry);
+	mHttpClient = new DefaultHttpClient(cm, params);
     }
 
     private void setupLock() {
@@ -406,6 +431,13 @@ public class IfmService extends Service implements IPlayer {
 		    mp.release();
 		}
 		return false;
+	    }
+	});
+
+	mMediaPlayer.setOnBufferingUpdateListener(new OnBufferingUpdateListener() {
+	    @Override
+	    public void onBufferingUpdate(MediaPlayer mp, int percent) {
+		Log.d("IFM", "percent: " + percent);
 	    }
 	});
     }
