@@ -34,7 +34,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
-import android.media.MediaPlayer.OnBufferingUpdateListener;
 import android.media.MediaPlayer.OnErrorListener;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
@@ -109,8 +108,7 @@ public class IfmService extends Service implements IPlayer {
 				String pathToImage = m.group(1);
 				String artist = m.group(2).trim();
 				String label = m.group(3).trim();
-				return new ChannelInfo(artist, label, Uri.parse(COVERART_URL
-						+ pathToImage));
+				return new ChannelInfo(artist, label, Uri.parse(Constants.IFM_URL + pathToImage));
 			}
 			return ChannelInfo.NO_INFO;
 		}
@@ -118,7 +116,6 @@ public class IfmService extends Service implements IPlayer {
 
 	private static final int SECOND_IN_MICROSECONDS = 1000;
 	private static final int CHANNEL_UPDATE_FREQUENCY = 20 * SECOND_IN_MICROSECONDS;
-	public static String COVERART_URL = "http://intergalactic.fm";
 	private static String CHANNEL_QUERY = "https://intergalactic.fm/blackhole/homepage.php?channel=";
 	private static Uri BLACKHOLE = Uri
 			.parse("http://radio.intergalacticfm.com");
@@ -486,14 +483,6 @@ public class IfmService extends Service implements IPlayer {
 				return false;
 			}
 		});
-
-		mMediaPlayer
-				.setOnBufferingUpdateListener(new OnBufferingUpdateListener() {
-					@Override
-					public void onBufferingUpdate(MediaPlayer mp, int percent) {
-						Log.d("IFM", "percent: " + percent);
-					}
-				});
 	}
 
 	@Override

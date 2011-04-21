@@ -4,7 +4,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
-import java.net.UnknownHostException;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -21,13 +20,11 @@ public class PushNotificationReceiver extends Thread {
 		mService = service;
 	}
 	
-	public void run()
-	{
+	public void run() {
 		listen();
 	}
 	
 	public void stopListening() {
-		Log.w("IFM", "Stopping...");
 		try {
 			interrupt();
 			if (mSocket != null) {
@@ -36,13 +33,11 @@ public class PushNotificationReceiver extends Thread {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		Log.w("IFM", "Stopped.");
 	}
 		
 	private void listen() {
 		try {
-			Log.w("IFM", "Trying to connect...");
-			mSocket = new Socket("ec2-79-125-57-87.eu-west-1.compute.amazonaws.com", 8142);
+			mSocket = new Socket(Constants.IFM_NODE_URL, Constants.IFM_NODE_PORT);
 
 			BufferedReader input = new BufferedReader(new InputStreamReader(
 					mSocket.getInputStream()), 1024);
@@ -53,9 +48,7 @@ public class PushNotificationReceiver extends Thread {
 			}
 			mSocket.close();
 		} catch (Exception e) {
-			if (isInterrupted()) {
-				Log.w("IFM", "Interrupted - Socket closed");
-			} else {
+			if (!isInterrupted()) {
 				e.printStackTrace();
 				Log.w("IFM", "Notification error occurred");
 				mService.pushNotificationErrorOccurred();
@@ -73,7 +66,7 @@ public class PushNotificationReceiver extends Thread {
 			String track = channelDetails.getString("track").trim();
 			String label = channelDetails.getString("label").trim();
 
-			ChannelInfo infoObject = new ChannelInfo(track, label, Uri.parse(IfmService.COVERART_URL + path));
+			ChannelInfo infoObject = new ChannelInfo(track, label, Uri.parse(Constants.IFM_URL + path));
 			mService.updateChannelInfo(channelIndex, infoObject);
 		} catch (JSONException e) {
 			e.printStackTrace();
