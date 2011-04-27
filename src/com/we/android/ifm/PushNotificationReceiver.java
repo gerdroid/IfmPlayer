@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -11,51 +12,90 @@ import org.json.JSONObject;
 import android.net.Uri;
 import android.util.Log;
 
-public class PushNotificationReceiver extends Thread {
+public class PushNotificationReceiver {
 
 	private IfmService mService;
-	private Socket mSocket;
+	private NotificationWorker mWorker;
 
+	private class NotificationWorker extends Thread {
+		private static final int SOCKET_TIMEOUT = 10*60*1000;
+		private IfmService mService;
+		private Socket mSocket;
+		
+		public NotificationWorker(IfmService service) {
+			mService = service;
+		}
+		
+		public void run() {
+			listen();
+		}
+		
+		public void stopListening() {
+			try {
+				interrupt();
+				if (mSocket != null) {
+					mSocket.close();
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+			
+		private void listen() {
+			try {
+				mSocket = new Socket(Constants.IFM_NODE_URL, Constants.IFM_NODE_PORT);
+				mSocket.setSoTimeout(SOCKET_TIMEOUT);
+
+				Log.w("IFM", "Connected...");
+				
+				BufferedReader input = new BufferedReader(new InputStreamReader(
+						mSocket.getInputStream()), 1024);
+
+				String line = null;
+				while (((line = input.readLine()) != null) && (!isInterrupted())) {
+					parseJson(line);				
+				}
+			} catch (SocketTimeoutException e) {
+				if (!isInterrupted()) {
+					mWorker = new NotificationWorker(mService);
+					mWorker.start();
+				}
+			} catch (Exception e) {
+				if (!isInterrupted()) {
+					e.printStackTrace();
+					Log.w("IFM", "Notification error occurred");
+					mService.pushNotificationErrorOccurred();
+				}
+			} finally {
+				Log.w("IFM", "Finally!");
+				if (mSocket != null) {
+					try {
+						mSocket.close();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		}
+	}
+	
 	public PushNotificationReceiver(IfmService service) {
 		mService = service;
 	}
 	
-	public void run() {
-		listen();
-	}
-	
-	public void stopListening() {
-		try {
-			interrupt();
-			if (mSocket != null) {
-				mSocket.close();
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-		
-	private void listen() {
-		try {
-			mSocket = new Socket(Constants.IFM_NODE_URL, Constants.IFM_NODE_PORT);
-
-			BufferedReader input = new BufferedReader(new InputStreamReader(
-					mSocket.getInputStream()), 1024);
-
-			String line = null;
-			while (((line = input.readLine()) != null) && (!isInterrupted())) {
-				parseJson(line);				
-			}
-			mSocket.close();
-		} catch (Exception e) {
-			if (!isInterrupted()) {
-				e.printStackTrace();
-				Log.w("IFM", "Notification error occurred");
-				mService.pushNotificationErrorOccurred();
-			}
+	public void start() {
+		if ((mWorker == null) || mWorker.isInterrupted()) {
+			mWorker = new NotificationWorker(mService);
+			mWorker.start();
 		}
 	}
 	
+	public void stop() {
+		if (mWorker != null) {
+			mWorker.stopListening();
+		}
+	}
+
 	private String parseJson(String jason) {
 		String result = "";
 		try {
@@ -73,4 +113,5 @@ public class PushNotificationReceiver extends Thread {
 		}
 		return result;
 	}
+
 }
