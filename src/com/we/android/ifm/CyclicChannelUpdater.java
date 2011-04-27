@@ -19,7 +19,7 @@ public class CyclicChannelUpdater {
 	private static final int SECOND_IN_MICROSECONDS = 1000;
 	private static final int CHANNEL_UPDATE_FREQUENCY = 20 * SECOND_IN_MICROSECONDS;
 	private static String CHANNEL_QUERY = "https://intergalactic.fm/blackhole/homepage.php?channel=";
-	
+
 	private IfmService mService;
 	private HttpClient mHttpClient;
 	private Handler mHandler;
@@ -54,14 +54,12 @@ public class CyclicChannelUpdater {
 				if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
 					HttpEntity entity = response.getEntity();
 					if (entity != null) {
-						String channelInfoString = Util.readString(entity
-								.getContent());
+						String channelInfoString = Util.readString(entity.getContent());
 						info = createChannelInfo(channelInfoString);
 						Log.d("IFM", "ChannelInfo: " + info);
 					}
 				} else {
-					Log.w("IFM", "http request failed: "
-							+ response.getStatusLine());
+					Log.w("IFM", "http request failed: " + response.getStatusLine());
 				}
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -73,8 +71,8 @@ public class CyclicChannelUpdater {
 			String tag1 = "img src=";
 			String tag2 = "<div id=\"track-info-trackname\">";
 			String tag3 = "<div id=\"track-info-label\">";
-			Pattern p = Pattern.compile(".*" + tag1 + "\"(.*?)\".*" + tag2
-					+ "\\s*<.*?>(.*?)</a>.*" + tag3 + "(.*?)</div>.*");
+			Pattern p = Pattern.compile(".*" + tag1 + "\"(.*?)\".*" + tag2 + "\\s*<.*?>(.*?)</a>.*" + tag3
+					+ "(.*?)</div>.*");
 			Matcher m = p.matcher(channelInfo);
 			if (m.matches()) {
 				String pathToImage = m.group(1);
@@ -85,12 +83,12 @@ public class CyclicChannelUpdater {
 			return ChannelInfo.NO_INFO;
 		}
 	}
-	
+
 	public CyclicChannelUpdater(IfmService service) {
 		mService = service;
 		mHandler = new Handler();
 	}
-	
+
 	public void start(int channelFilter) {
 		mChannelFilter = channelFilter;
 		mHttpClient = Util.createThreadSaveHttpClient(20);
@@ -107,7 +105,7 @@ public class CyclicChannelUpdater {
 	public void setChannelFilter(int channelFilter) {
 		mChannelFilter = channelFilter;
 	}
-	
+
 	private void startPolling() {
 		if (mChannelFilter == Constants.NONE) {
 			for (int i = 0; i < Constants.NUMBER_OF_CHANNELS; i++) {
@@ -119,5 +117,5 @@ public class CyclicChannelUpdater {
 		mHandler.removeCallbacks(mRunnable);
 		mHandler.postDelayed(mRunnable, CHANNEL_UPDATE_FREQUENCY);
 	}
-	
+
 }

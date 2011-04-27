@@ -18,18 +18,18 @@ public class PushNotificationReceiver {
 	private NotificationWorker mWorker;
 
 	private class NotificationWorker extends Thread {
-		private static final int SOCKET_TIMEOUT = 10*60*1000;
+		private static final int SOCKET_TIMEOUT = 10 * 60 * 1000;
 		private IfmService mService;
 		private Socket mSocket;
-		
+
 		public NotificationWorker(IfmService service) {
 			mService = service;
 		}
-		
+
 		public void run() {
 			listen();
 		}
-		
+
 		public void stopListening() {
 			try {
 				interrupt();
@@ -40,20 +40,19 @@ public class PushNotificationReceiver {
 				e.printStackTrace();
 			}
 		}
-			
+
 		private void listen() {
 			try {
 				mSocket = new Socket(Constants.IFM_NODE_URL, Constants.IFM_NODE_PORT);
 				mSocket.setSoTimeout(SOCKET_TIMEOUT);
 
 				Log.w("IFM", "Connected...");
-				
-				BufferedReader input = new BufferedReader(new InputStreamReader(
-						mSocket.getInputStream()), 1024);
+
+				BufferedReader input = new BufferedReader(new InputStreamReader(mSocket.getInputStream()), 1024);
 
 				String line = null;
 				while (((line = input.readLine()) != null) && (!isInterrupted())) {
-					parseJson(line);				
+					parseJson(line);
 				}
 			} catch (SocketTimeoutException e) {
 				if (!isInterrupted()) {
@@ -78,18 +77,18 @@ public class PushNotificationReceiver {
 			}
 		}
 	}
-	
+
 	public PushNotificationReceiver(IfmService service) {
 		mService = service;
 	}
-	
+
 	public void start() {
 		if ((mWorker == null) || mWorker.isInterrupted()) {
 			mWorker = new NotificationWorker(mService);
 			mWorker.start();
 		}
 	}
-	
+
 	public void stop() {
 		if (mWorker != null) {
 			mWorker.stopListening();

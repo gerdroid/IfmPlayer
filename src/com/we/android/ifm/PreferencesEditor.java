@@ -4,10 +4,10 @@ import android.os.Bundle;
 import android.preference.PreferenceActivity;
 
 public class PreferencesEditor extends PreferenceActivity {
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-	super.onCreate(savedInstanceState);
+	@Override
+	public void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
 
-	addPreferencesFromResource(R.xml.preferences);
-    }
+		addPreferencesFromResource(R.xml.preferences);
+	}
 }

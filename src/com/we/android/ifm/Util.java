@@ -22,32 +22,32 @@ import org.apache.http.params.HttpProtocolParams;
 import android.util.Log;
 
 public class Util {
-    public static String readString(InputStream input) {
-	BufferedReader reader = new BufferedReader(new InputStreamReader(input));
-	StringBuilder builder = new StringBuilder();
-	try {
-	    try {
-		String str = null;
-		while ((str = reader.readLine()) != null) {
-		    builder.append(str);
+	public static String readString(InputStream input) {
+		BufferedReader reader = new BufferedReader(new InputStreamReader(input));
+		StringBuilder builder = new StringBuilder();
+		try {
+			try {
+				String str = null;
+				while ((str = reader.readLine()) != null) {
+					builder.append(str);
+				}
+			} finally {
+				reader.close();
+			}
+		} catch (IOException e) {
+			Log.w("IFM", "Evil things happen here: " + e.toString());
 		}
-	    } finally {
-		reader.close();
-	    }
-	} catch (IOException e) {
-	    Log.w("IFM", "Evil things happen here: " + e.toString());
+		return builder.toString();
 	}
-	return builder.toString();
-    }
-    
-    public static HttpClient createThreadSaveHttpClient(int timeoutInSec) {
-	SchemeRegistry schemeRegistry = new SchemeRegistry();
-	schemeRegistry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
-	schemeRegistry.register(new Scheme("https", SSLSocketFactory.getSocketFactory(), 443));
-	HttpParams params = new BasicHttpParams();
-	HttpConnectionParams.setConnectionTimeout(params, timeoutInSec * 1000);
-	HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);
-	ClientConnectionManager cm = new ThreadSafeClientConnManager(params, schemeRegistry);
-	return new DefaultHttpClient(cm, params);
-    }
+
+	public static HttpClient createThreadSaveHttpClient(int timeoutInSec) {
+		SchemeRegistry schemeRegistry = new SchemeRegistry();
+		schemeRegistry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
+		schemeRegistry.register(new Scheme("https", SSLSocketFactory.getSocketFactory(), 443));
+		HttpParams params = new BasicHttpParams();
+		HttpConnectionParams.setConnectionTimeout(params, timeoutInSec * 1000);
+		HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);
+		ClientConnectionManager cm = new ThreadSafeClientConnManager(params, schemeRegistry);
+		return new DefaultHttpClient(cm, params);
+	}
 }

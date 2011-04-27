@@ -32,8 +32,7 @@ import android.util.Log;
 
 public class IfmService extends Service implements IPlayer {
 
-	private static Uri BLACKHOLE = Uri
-			.parse("http://radio.intergalacticfm.com");
+	private static Uri BLACKHOLE = Uri.parse("http://radio.intergalacticfm.com");
 	private static final int IFM_NOTIFICATION = 0;
 
 	private WifiLock mWifiLock;
@@ -103,8 +102,7 @@ public class IfmService extends Service implements IPlayer {
 				}
 			} else if (requestedState == PlayerState.PREPARING) {
 				if (mState == PlayerState.IDLE) {
-					mAsyncHandler.sendEmptyMessage(PlayerState.PREPARED
-							.ordinal());
+					mAsyncHandler.sendEmptyMessage(PlayerState.PREPARED.ordinal());
 				} else {
 					Log.d("IFM", "throw away: " + requestedState);
 					return;
@@ -114,15 +112,13 @@ public class IfmService extends Service implements IPlayer {
 					try {
 						doPreparation();
 						mMediaPlayer.prepare();
-						mAsyncHandler.sendEmptyMessage(PlayerState.RUNNING
-								.ordinal());
+						mAsyncHandler.sendEmptyMessage(PlayerState.RUNNING.ordinal());
 					} catch (Exception e) {
 						releaseLocks();
 						mChannelPlaying = Constants.NONE;
 						stopNotification();
 						mStateListener.onChannelError();
-						mAsyncHandler.sendEmptyMessage(PlayerState.IDLE
-								.ordinal());
+						mAsyncHandler.sendEmptyMessage(PlayerState.IDLE.ordinal());
 						Log.e("IFM", "connection error: " + e.getMessage());
 						;
 					}
@@ -182,8 +178,7 @@ public class IfmService extends Service implements IPlayer {
 					@Override
 					public void run() {
 						if (mState != PlayerState.IDLE) {
-							mAudioManager.setStreamMute(
-									AudioManager.STREAM_MUSIC, true);
+							mAudioManager.setStreamMute(AudioManager.STREAM_MUSIC, true);
 						}
 					}
 				});
@@ -201,10 +196,8 @@ public class IfmService extends Service implements IPlayer {
 		}
 
 		public void onReceive(Context context, Intent intent) {
-			TelephonyManager telephony = (TelephonyManager) context
-					.getSystemService(Context.TELEPHONY_SERVICE);
-			telephony.listen(mPhoneListener,
-					PhoneStateListener.LISTEN_CALL_STATE);
+			TelephonyManager telephony = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+			telephony.listen(mPhoneListener, PhoneStateListener.LISTEN_CALL_STATE);
 		}
 	}
 
@@ -246,8 +239,7 @@ public class IfmService extends Service implements IPlayer {
 	}
 
 	public boolean isPreparing() {
-		return (mState == PlayerState.PREPARING)
-				|| (mState == PlayerState.PREPARED);
+		return (mState == PlayerState.PREPARING) || (mState == PlayerState.PREPARED);
 	}
 
 	public void registerStateListener(IPlayerStateListener stateListener) {
@@ -257,14 +249,11 @@ public class IfmService extends Service implements IPlayer {
 	public ChannelInfo[] getChannelInfo() {
 		return mChannelInfos;
 	}
-	
+
 	public void updateChannelInfo(int channelId, ChannelInfo info) {
-		if ((mChannelInfos[channelId] == ChannelInfo.NO_INFO)
-				|| (info != ChannelInfo.NO_INFO)) {
-			if (!mChannelInfos[channelId].getArtist().equals(
-					info.getArtist()) ||
-				!mChannelInfos[channelId].getLabel().equals(
-					info.getLabel())) {
+		if ((mChannelInfos[channelId] == ChannelInfo.NO_INFO) || (info != ChannelInfo.NO_INFO)) {
+			if (!mChannelInfos[channelId].getArtist().equals(info.getArtist())
+					|| !mChannelInfos[channelId].getLabel().equals(info.getLabel())) {
 				mChannelInfos[channelId] = info;
 				updateNotification();
 				if (mStateListener != mNullPlayerStateListener) {
@@ -273,41 +262,35 @@ public class IfmService extends Service implements IPlayer {
 			}
 		}
 	}
-	
+
 	public void pushNotificationErrorOccurred() {
 		mUsePushNotification = false;
 		int channelFilter = Constants.NONE;
 		if (mStateListener == mNullPlayerStateListener) {
 			channelFilter = mChannelPlaying;
 		}
-		mCyclicChannelUpdater.start(channelFilter);		
+		mCyclicChannelUpdater.start(channelFilter);
 	}
 
 	private void doPreparation() throws Exception {
 		if (mChannelUris[mChannelPlaying] == null) {
-			mChannelUris[mChannelPlaying] = getChannelUri(BLACKHOLE,
-					mChannelPlaying);
+			mChannelUris[mChannelPlaying] = getChannelUri(BLACKHOLE, mChannelPlaying);
 		}
 		Log.d("IFM", "channelUir: " + mChannelUris[mChannelPlaying]);
-		mMediaPlayer.setDataSource(getBaseContext(),
-				mChannelUris[mChannelPlaying]);
+		mMediaPlayer.setDataSource(getBaseContext(), mChannelUris[mChannelPlaying]);
 	}
 
 	private Uri getChannelUri(Uri baseUri, int channel) throws Exception {
-		URL url = new URL(Uri.withAppendedPath(baseUri, (channel + 1) + ".m3u")
-				.toString());
-		BufferedReader reader = new BufferedReader(new InputStreamReader(url
-				.openStream()));
+		URL url = new URL(Uri.withAppendedPath(baseUri, (channel + 1) + ".m3u").toString());
+		BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
 		String line = reader.readLine();
 		return Uri.parse(line);
 	}
 
 	@Override
 	public void onCreate() {
-		mPhoneStateReceiver = new PhoneStateReceiver(
-				(AudioManager) getSystemService(AUDIO_SERVICE));
-		registerReceiver(mPhoneStateReceiver, new IntentFilter(
-				"android.intent.action.PHONE_STATE"));
+		mPhoneStateReceiver = new PhoneStateReceiver((AudioManager) getSystemService(AUDIO_SERVICE));
+		registerReceiver(mPhoneStateReceiver, new IntentFilter("android.intent.action.PHONE_STATE"));
 		mMediaPlayer = new MediaPlayer();
 		setupMediaPlayer();
 		mChannelUris = new Uri[Constants.NUMBER_OF_CHANNELS];
@@ -331,10 +314,9 @@ public class IfmService extends Service implements IPlayer {
 	}
 
 	private void setupLock() {
-		mWakeLock = ((PowerManager) getSystemService(POWER_SERVICE))
-				.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "IfmWakeLock");
-		mWifiLock = ((WifiManager) getSystemService(WIFI_SERVICE))
-				.createWifiLock("IntergalacticFM");
+		mWakeLock = ((PowerManager) getSystemService(POWER_SERVICE)).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
+				"IfmWakeLock");
+		mWifiLock = ((WifiManager) getSystemService(WIFI_SERVICE)).createWifiLock("IntergalacticFM");
 	}
 
 	private void updateNotification() {
@@ -342,12 +324,11 @@ public class IfmService extends Service implements IPlayer {
 			Intent intent = new Intent(this, IfmPlayer.class);
 			intent.setAction(Intent.ACTION_VIEW);
 			String artist = mChannelInfos[mChannelPlaying].getArtist();
-			Notification notification = new Notification(R.drawable.ifm,
-					"Playing " + artist, System.currentTimeMillis());
+			Notification notification = new Notification(R.drawable.ifm, "Playing " + artist, System
+					.currentTimeMillis());
 			notification.flags |= Notification.FLAG_NO_CLEAR;
-			notification.setLatestEventInfo(this, "IFM Player", "playing "
-					+ artist, PendingIntent.getActivity(this.getBaseContext(),
-					0, intent, PendingIntent.FLAG_CANCEL_CURRENT));
+			notification.setLatestEventInfo(this, "IFM Player", "playing " + artist, PendingIntent.getActivity(this
+					.getBaseContext(), 0, intent, PendingIntent.FLAG_CANCEL_CURRENT));
 			mNotificationManager.notify(IFM_NOTIFICATION, notification);
 		}
 	}
@@ -358,8 +339,7 @@ public class IfmService extends Service implements IPlayer {
 
 	private void setupMediaPlayer() {
 		mMediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
-		mMediaPlayer.setWakeMode(getApplicationContext(),
-				PowerManager.PARTIAL_WAKE_LOCK);
+		mMediaPlayer.setWakeMode(getApplicationContext(), PowerManager.PARTIAL_WAKE_LOCK);
 		mMediaPlayer.setOnErrorListener(new OnErrorListener() {
 			@Override
 			public boolean onError(MediaPlayer mp, int what, int extra) {
@@ -378,7 +358,7 @@ public class IfmService extends Service implements IPlayer {
 		releaseLocks();
 		mMediaPlayer.release();
 		unregisterReceiver(mPhoneStateReceiver);
-		stopNotification();		
+		stopNotification();
 		mPushNotificationReceiver.stop();
 		mCyclicChannelUpdater.stop();
 		super.onDestroy();
