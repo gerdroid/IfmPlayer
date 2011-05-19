@@ -2,5 +2,10 @@
    <color name="ifm1">#fff64841</color>
    <color name="ifm2">#ffeec900</color>
    <color name="ifm3">#ff5a9bff</color>
-   <color name="ifm4">#ff9c7149</color>
+   <color name="ifm1sep">#ffffa0a0</color>
+   <color name="ifm2sep">#ffeee3a9</color>
+   <color name="ifm3sep">#ffa8c1e7</color>
+   <color name="schedule">#ffe0e0e0</color>
+   <color name="scheduleday">#ffd00000</color>
+   <color name="actionbar">#ff404040</color>
 </resources>

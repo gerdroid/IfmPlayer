@@ -327,7 +327,7 @@ public class IfmService extends Service implements IPlayer {
 			Notification notification = new Notification(R.drawable.ifm, "Playing " + artist, System
 					.currentTimeMillis());
 			notification.flags |= Notification.FLAG_NO_CLEAR;
-			notification.setLatestEventInfo(this, "IFM Player", "playing " + artist, PendingIntent.getActivity(this
+			notification.setLatestEventInfo(this, "Intergalactic FM", artist, PendingIntent.getActivity(this
 					.getBaseContext(), 0, intent, PendingIntent.FLAG_CANCEL_CURRENT));
 			mNotificationManager.notify(IFM_NOTIFICATION, notification);
 		}

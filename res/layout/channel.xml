@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	android:id="@+id/channel"
 	android:orientation="vertical"
@@ -14,20 +13,32 @@
 		android:layout_marginBottom="3dip">
 		<TextView android:id="@+id/channel_name" 
 			android:textSize="24dip"
-			android:textColor="#ffffffff" 
+			android:textColor="#ffffffff"
+			android:textScaleX="1.2"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content" 
 			android:layout_marginLeft="5dip"/>
 		<View android:layout_width="fill_parent"
 			android:layout_height="fill_parent"
 			android:layout_weight="1"/>
-		<ImageView android:id="@+id/playindicator" 
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:layout_gravity="center"
-			android:layout_marginRight="10dip"/>	
+			<LinearLayout
+				android:orientation="horizontal"
+				android:layout_gravity="center"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content">
+				<com.we.android.ifm.LevelAnimation 
+					android:id="@+id/playindicator1" 
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:layout_marginRight="1dip"/>
+				<com.we.android.ifm.LevelAnimation 
+					android:id="@+id/playindicator2" 
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:layout_marginRight="5dip"/>	
+			</LinearLayout>
 	</LinearLayout>
-	<View android:background="#ffffff"
+	<View android:id="@+id/titleseperator"
 		android:layout_width="fill_parent"
 		android:layout_height="1dip"
 		android:gravity="center_horizontal" />
@@ -35,8 +46,8 @@
 		android:orientation="horizontal"
 		android:layout_width="fill_parent"
 		android:layout_height="wrap_content"
-		android:layout_marginTop="8dip"
-		android:layout_marginBottom="8dip">
+		android:layout_marginTop="12dip"
+		android:layout_marginBottom="12dip">
 		<ImageView android:id="@+id/cover" 
 			android:layout_width="70dip"
 			android:layout_height="70dip" 

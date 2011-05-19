@@ -17,31 +17,17 @@
       		android:layout_marginLeft="5dip"
       		android:layout_marginRight="10dip" 
       		android:layout_gravity="center_vertical"/>
-   	 	<TextView android:text="Intergalactic FM" 
+   	 	<TextView android:text="Upcoming Shows" 
    	 		android:layout_centerInParent="true"
    	 		android:layout_toRightOf="@id/icon" 
    	 		android:layout_height="wrap_content"
    	 		android:layout_width="wrap_content"
    	 		android:textSize="18dip"
    	 		android:textColor="#ffe0e0e0"/>
-   	 	<ImageButton android:id="@+id/scheduleButton" 
-   	 		android:layout_gravity="center_vertical"
-   	 		android:layout_alignParentRight="true" 
-   	 		android:src="@drawable/list"
-   	 		android:background="@android:color/transparent"
-   	 		android:layout_height="wrap_content" 
-   	 		android:layout_width="wrap_content"/>
-   	 	<View android:layout_toLeftOf="@id/scheduleButton"
-   	 		android:layout_height="fill_parent"
-   	 		android:layout_width="1px"
-   	 		android:background="#ff909090"/>
-    </RelativeLayout>
-    <!--<View android:background="#ffffff" 
-    	android:layout_width="fill_parent"
-		android:layout_height="1dip"/>-->
+   	</RelativeLayout>
 	<ListView
 		android:id="@android:id/list"
 		android:layout_width="fill_parent"
-		android:layout_height="wrap_content"/>
+		android:layout_height="fill_parent"/>
 </LinearLayout>
 	

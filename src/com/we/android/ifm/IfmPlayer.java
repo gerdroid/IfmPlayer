@@ -30,9 +30,11 @@ import android.os.Vibrator;
 import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.Menu;
+import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.Window;
+import android.view.View.OnClickListener;
 import android.widget.Adapter;
 import android.widget.AdapterView;
 import android.widget.Toast;
@@ -96,8 +98,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 		}
 	}
 
-	private static final int MENU_SCHEDULE = 0;
-	private static final int MENU_SETTINGS = 1;
+	private static final int MENU_SETTINGS = 0;
 
 	private ProgressDialog mMediaPlayerProgress;
 
@@ -165,9 +166,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
 		mChannelViewAdapter = new ChannelViewAdapter(getLayoutInflater(), this);
 		setListAdapter(mChannelViewAdapter);
-
 		getListView().setDivider(null);
-
 		getListView().setOnItemSelectedListener(new OnItemSelectedListener() {
 			@Override
 			public void onItemSelected(AdapterView<?> view, View child, int pos, long id) {
@@ -215,6 +214,13 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 				}
 			}
 		});
+		
+		findViewById(R.id.scheduleButton).setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				startActivity(new Intent(IfmPlayer.this, IfmSchedule.class));
+			}
+		});
 
 		mHttpClient = Util.createThreadSaveHttpClient(20);
 	}
@@ -225,7 +231,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 		bindService(new Intent(IfmService.class.getName()), this, Context.BIND_AUTO_CREATE);
 
 		boolean showCoverArtPref = PreferenceManager.getDefaultSharedPreferences(this)
-				.getBoolean("showCoverArt", false);
+				.getBoolean("showCoverArt", true);
 		if (showCoverArtPref && !mShowCoverArt) {
 			Toast.makeText(getApplicationContext(), "Loading Coverart...", 5000).show();
 		}
@@ -244,12 +250,13 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 		if (!mPlayer.isPlaying()) {
 			stopService(new Intent(IfmService.class.getName()));
 		}
+		mChannelViewAdapter.pause();
 		Editor editor = getPreferences(MODE_PRIVATE).edit();
 		editor.putInt("channelSelected", mSelectedChannel);
 		editor.commit();
 		super.onPause();
 	}
-
+	
 	@Override
 	protected void onDestroy() {
 		mHttpClient.getConnectionManager().shutdown();
@@ -328,26 +335,22 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
 	@Override
 	public boolean onPrepareOptionsMenu(Menu menu) {
-		menu.getItem(MENU_SCHEDULE).setEnabled(true);
 		menu.getItem(MENU_SETTINGS).setEnabled(true);
 		return super.onPrepareOptionsMenu(menu);
 	}
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
-		menu.add(Menu.NONE, MENU_SCHEDULE, 1, "Schedule").setEnabled(true);
-		menu.add(Menu.NONE, MENU_SETTINGS, 2, "Settings").setEnabled(true);
-		return super.onCreateOptionsMenu(menu);
+		MenuInflater inflater = getMenuInflater();
+	    inflater.inflate(R.layout.menu, menu);
+		return true;
 	}
 
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
-		case MENU_SETTINGS:
+		case R.id.settings:
 			startActivity(new Intent(this, PreferencesEditor.class));
-			break;
-		case MENU_SCHEDULE:
-			startActivity(new Intent(this, IfmSchedule.class));
 			break;
 		}
 		return super.onOptionsItemSelected(item);

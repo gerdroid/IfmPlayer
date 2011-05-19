@@ -1,14 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-     android:orientation="vertical"
-     android:layout_width="fill_parent"
-     android:layout_height="fill_parent">
-     <TextView android:id="@+id/schedult_item"
-         android:layout_width="wrap_content" 
-         android:layout_height="wrap_content"
-         android:textColor="#ff000000"
-         android:textSize="18dip"
-         android:layout_marginBottom="5dip"
-         android:layout_marginTop="5dip"/>
- </LinearLayout>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android" 
+	android:id="@+id/schedult_item"
+    android:layout_width="fill_parent" 
+    android:layout_height="wrap_content"
+    android:textColor="#ff000000"
+    android:background="@color/schedule"
+    android:textSize="19dip"
+    android:paddingTop="5dip"
+    android:paddingBottom="5dip"
+    android:paddingLeft="3dip"
+    android:paddingRight="3dip"/>
