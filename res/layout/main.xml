@@ -23,7 +23,8 @@
    	 		android:layout_height="wrap_content"
    	 		android:layout_width="wrap_content"
    	 		android:textSize="18dip"
-   	 		android:textColor="#ffe0e0e0"/>
+   	 		android:textColor="#ffe0e0e0"
+   	 		android:textStyle="bold"/>
    	 	<ImageButton android:id="@+id/scheduleButton" 
    	 		android:layout_gravity="center_vertical"
    	 		android:layout_alignParentRight="true" 
