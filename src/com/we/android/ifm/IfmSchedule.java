@@ -3,8 +3,10 @@ package com.we.android.ifm;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.TimeZone;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -22,6 +24,7 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.text.Html;
 import android.text.Spanned;
+import android.text.format.DateFormat;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -43,8 +46,30 @@ public class IfmSchedule extends ListActivity {
 		public ScheduleItem(String title, String date, String from, String to) {
 			mTitle = title;
 			mDate = date;
-			mFrom = from;
-			mTo = to;
+			mFrom = getLocalTime(getCalendar(date, from));
+			mTo = getLocalTime(getCalendar(date, to));
+		}
+		
+		private String getLocalTime(Calendar c) {
+			Calendar local = Calendar.getInstance();
+			local.setTimeInMillis(c.getTimeInMillis());
+			SimpleDateFormat dateFormat = new SimpleDateFormat("hh:mm a");
+			if (DateFormat.is24HourFormat(getApplicationContext())) {
+				dateFormat = new SimpleDateFormat("HH:mm");
+			}
+			return dateFormat.format(c.getTime());
+		}
+		
+		private Calendar getCalendar(String date, String time) {
+			Calendar c = Calendar.getInstance(TimeZone.getTimeZone("CET"));
+			Date d;
+			try {
+				d = new SimpleDateFormat("dd-MM-yyyy'T'HH:mm").parse(date + "T" + time);
+				c.set(d.getYear(), d.getMonth(), d.getDay(), d.getHours(), d.getMinutes());
+			} catch (ParseException e) {
+				e.printStackTrace();
+			}
+			return c;
 		}
 
 		/**
