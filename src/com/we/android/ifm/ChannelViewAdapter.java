@@ -37,6 +37,15 @@ class ChannelViewAdapter extends BaseAdapter {
 	public void pause() {
 		setChannelPlaying(Constants.NONE);
 	}
+	
+	public boolean allImagesLoaded() {
+		for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
+			if (mChannelBitmaps[i] == mDefaultBitmaps.get(i)) {
+				return false;
+			}
+		}
+		return true;
+	}
 
 	public void updateChannelInfo(int channel, ChannelInfo info) {
 		mChannelInfos[channel] = info;

@@ -32,7 +32,16 @@
    	 		android:background="@android:color/transparent"
    	 		android:layout_height="wrap_content" 
    	 		android:layout_width="wrap_content"/>
-   	 	<View android:layout_toLeftOf="@id/scheduleButton"
+   	 	<ProgressBar android:id="@+id/progressBar" 
+   	 		android:layout_height="35px"
+   	 		android:layout_width="35px"
+   	 		android:visibility="invisible"
+   	 		style="?android:attr/progressBarStyleSmall"
+   	 		android:layout_centerVertical="true"
+   	 		android:layout_toLeftOf="@+id/seperator"
+   	 		android:layout_marginRight="10dip"/>
+   	 	<View android:id="@+id/seperator"
+   	 		android:layout_toLeftOf="@id/scheduleButton"
    	 		android:layout_height="fill_parent"
    	 		android:layout_width="1px"
    	 		android:background="#ff909090"/>

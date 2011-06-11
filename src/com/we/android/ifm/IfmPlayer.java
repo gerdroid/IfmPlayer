@@ -66,6 +66,12 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 			if (mShowCoverArt) {
 				mChannelViewAdapter.updateBitmap(mChannel, result);
 			}
+			View progress = findViewById(R.id.progressBar); 
+			if (progress.getVisibility() == View.VISIBLE) {
+				if (mChannelViewAdapter.allImagesLoaded()) {
+					progress.setVisibility(View.INVISIBLE);
+				}
+			}
 			super.onPostExecute(result);
 		}
 
@@ -232,9 +238,6 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 
 		boolean showCoverArtPref = PreferenceManager.getDefaultSharedPreferences(this)
 				.getBoolean("showCoverArt", true);
-		if (showCoverArtPref && !mShowCoverArt) {
-			Toast.makeText(getApplicationContext(), "Loading Coverart...", 5000).show();
-		}
 		mShowCoverArt = showCoverArtPref;
 
 		updateChannelInfos();
@@ -312,6 +315,9 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 		}
 		if (mPlayer.isPlaying()) {
 			mChannelViewAdapter.setChannelPlaying(mPlayer.getPlayingChannel());
+		}
+		if (mShowCoverArt) {
+			findViewById(R.id.progressBar).setVisibility(View.VISIBLE);
 		}
 	}
 
