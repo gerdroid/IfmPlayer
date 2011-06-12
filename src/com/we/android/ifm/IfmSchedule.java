@@ -110,7 +110,6 @@ public class IfmSchedule extends ListActivity {
 	}
 
 	class ScheduleListAdapter extends BaseAdapter {
-		private int mColorCounter = 0;
 		
 		@Override
 		public boolean areAllItemsEnabled() {
@@ -133,7 +132,6 @@ public class IfmSchedule extends ListActivity {
 				textView.setTextSize(20);
 				textView.setTextScaleX(1.4f);
 				scheduleItemView.setBackgroundResource(R.color.ifm1);
-				mColorCounter++;
 				textView.setTextColor(Color.WHITE);
 			} else {
 				String from = mSchedule.get(position).mFrom;

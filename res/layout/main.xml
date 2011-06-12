@@ -46,9 +46,6 @@
    	 		android:layout_width="1px"
    	 		android:background="#ff909090"/>
     </RelativeLayout>
-    <!--<View android:background="#ffffff" 
-    	android:layout_width="fill_parent"
-		android:layout_height="1dip"/>-->
 	<ListView
 		android:id="@android:id/list"
 		android:layout_width="fill_parent"
