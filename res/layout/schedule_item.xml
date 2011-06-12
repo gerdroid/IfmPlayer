@@ -5,7 +5,7 @@
     android:layout_height="wrap_content"
     android:textColor="#ff000000"
     android:background="@color/schedule"
-    android:textSize="19dip"
+    android:textSize="18dip"
     android:paddingTop="5dip"
     android:paddingBottom="5dip"
     android:paddingLeft="3dip"
