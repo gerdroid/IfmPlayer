@@ -1,109 +1,40 @@
 package com.we.android.ifm;
 
-import java.io.IOException;
-import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.HttpStatus;
 import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
 
 import android.app.ListActivity;
 import android.app.ProgressDialog;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.DialogInterface.OnCancelListener;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
-import android.content.DialogInterface.OnCancelListener;
 import android.content.SharedPreferences.Editor;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.Vibrator;
 import android.preference.PreferenceManager;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.Window;
 import android.view.View.OnClickListener;
+import android.view.Window;
 import android.widget.Adapter;
 import android.widget.AdapterView;
-import android.widget.Toast;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.AdapterView.OnItemSelectedListener;
+import android.widget.Toast;
+
+import com.we.android.ifm.AsyncCoverLoader.UpdateCoverImage;
 
 public class IfmPlayer extends ListActivity implements ServiceConnection {
-	class UpdateCoverImage {
-		int mChannel;
-		Uri mCoverUri;
-
-		public UpdateCoverImage(int channel, Uri coverUri) {
-			mChannel = channel;
-			mCoverUri = coverUri;
-		}
-	}
-
-	class CoverImageLoader extends AsyncTask<UpdateCoverImage, Void, Bitmap> {
-		private int mChannel;
-
-		@Override
-		protected Bitmap doInBackground(UpdateCoverImage... updates) {
-			mChannel = updates[0].mChannel;
-			return getBitmap(updates[0].mCoverUri);
-		}
-
-		@Override
-		protected void onPostExecute(Bitmap result) {
-			if (mShowCoverArt) {
-				mChannelViewAdapter.updateBitmap(mChannel, result);
-			}
-			View progress = findViewById(R.id.progressBar); 
-			if (progress.getVisibility() == View.VISIBLE) {
-				if (mChannelViewAdapter.allImagesLoaded()) {
-					progress.setVisibility(View.INVISIBLE);
-				}
-			}
-			super.onPostExecute(result);
-		}
-
-		private Bitmap getBitmap(Uri coverUri) {
-			Bitmap bitmap = null;
-			try {
-				HttpGet get = new HttpGet(coverUri.toString());
-				HttpResponse response = mHttpClient.execute(get);
-				if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
-					HttpEntity entity = response.getEntity();
-					if (entity != null) {
-						InputStream is = entity.getContent();
-						try {
-							try {
-								bitmap = BitmapFactory.decodeStream(is);
-							} finally {
-								is.close();
-							}
-						} catch (IOException e) {
-							Log.w("IFM", "problems decoding Coverart: " + e.toString());
-						}
-					}
-				} else {
-					Log.w("IFM", "ServerResponse: " + response.getStatusLine());
-				}
-			} catch (Exception e) {
-				Log.w("IFM", e.toString());
-			}
-			return bitmap;
-		}
-	}
-
 	private static final int MENU_SETTINGS = 0;
 
 	private ProgressDialog mMediaPlayerProgress;
@@ -115,6 +46,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 	private ChannelViewAdapter mChannelViewAdapter;
 	private IPlayer mPlayer;
 	private HttpClient mHttpClient;
+	private AsyncCoverLoader mAsyncCoverLoader;
 
 	private final IPlayerStateListener mPlayerStateListener = new IPlayerStateListener() {
 		@Override
@@ -154,7 +86,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 							mChannelViewAdapter.updateChannelInfo(channel, channelInfo);
 						}
 						if (mShowCoverArt) {
-							new CoverImageLoader().execute(new UpdateCoverImage(channel, channelInfo.getCoverUri()));
+							mAsyncCoverLoader.loadCover(new UpdateCoverImage(channel, channelInfo.getCoverUri()));
 						}
 					}
 				});
@@ -184,7 +116,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 			public void onNothingSelected(AdapterView<?> arg0) {
 			}
 		});
-
+		
 		mVibratorService = (Vibrator) getSystemService(VIBRATOR_SERVICE);
 
 		mPlayer = new NullPlayer();
@@ -229,6 +161,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 		});
 
 		mHttpClient = Util.createThreadSaveHttpClient(20);
+		mAsyncCoverLoader = new AsyncCoverLoader(mHttpClient, mChannelViewAdapter, findViewById(R.id.progressBar));
 	}
 
 	@Override
@@ -236,9 +169,7 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 		startService(new Intent(IfmService.class.getName()));
 		bindService(new Intent(IfmService.class.getName()), this, Context.BIND_AUTO_CREATE);
 
-		boolean showCoverArtPref = PreferenceManager.getDefaultSharedPreferences(this)
-				.getBoolean("showCoverArt", true);
-		mShowCoverArt = showCoverArtPref;
+		mShowCoverArt = PreferenceManager.getDefaultSharedPreferences(this).getBoolean("showCoverArt", true);
 
 		updateChannelInfos();
 		super.onResume();
@@ -316,23 +247,25 @@ public class IfmPlayer extends ListActivity implements ServiceConnection {
 		if (mPlayer.isPlaying()) {
 			mChannelViewAdapter.setChannelPlaying(mPlayer.getPlayingChannel());
 		}
-		if (mShowCoverArt) {
-			findViewById(R.id.progressBar).setVisibility(View.VISIBLE);
-		}
 	}
 
 	private void updateChannelInfos() {
+		if (mShowCoverArt) {
+			mAsyncCoverLoader.showProgress();
+		}
 		ChannelInfo[] infos = mPlayer.getChannelInfo();
+		List<UpdateCoverImage> updates = new ArrayList<UpdateCoverImage>();
 		for (int i = 0; i < Constants.NUMBER_OF_CHANNELS; i++) {
 			if (infos[i] != ChannelInfo.NO_INFO) {
 				mChannelViewAdapter.updateChannelInfo(i, infos[i]);
 				if (mShowCoverArt) {
-					new CoverImageLoader().execute(new UpdateCoverImage(i, infos[i].getCoverUri()));
+					updates.add(new AsyncCoverLoader.UpdateCoverImage(i, infos[i].getCoverUri()));
 				} else {
 					mChannelViewAdapter.updateBitmap(i, null);
 				}
 			}
 		}
+		mAsyncCoverLoader.loadCovers(updates);
 	}
 
 	@Override
