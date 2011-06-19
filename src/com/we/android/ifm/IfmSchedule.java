@@ -3,10 +3,8 @@ package com.we.android.ifm;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
-import java.util.TimeZone;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -25,6 +23,8 @@ import android.os.Bundle;
 import android.text.Html;
 import android.text.Spanned;
 import android.text.format.DateFormat;
+import android.text.format.DateUtils;
+import android.text.format.Time;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -37,39 +37,40 @@ public class IfmSchedule extends ListActivity {
 
 	class ScheduleItem {
 		private static final String ZERO_DAY = "";
-		String mTitle;
-		String mDate;
-		String mFrom;
-		String mTo;
+		private String mTitle;
+		private Time mFrom;
+		private Time mTo;
 		private String mDay = ZERO_DAY;
 
 		public ScheduleItem(String title, String date, String from, String to) {
 			mTitle = title;
-			mDate = date;
-			mFrom = getLocalTime(getCalendar(date, from));
-			mTo = getLocalTime(getCalendar(date, to));
+			mFrom = getLocalTime(date, from);
+			mTo = getLocalTime(date, to);
 		}
 		
-		private String getLocalTime(Calendar c) {
-			Calendar local = Calendar.getInstance();
-			local.setTimeInMillis(c.getTimeInMillis());
-			SimpleDateFormat dateFormat = new SimpleDateFormat("hh:mm a");
-			if (DateFormat.is24HourFormat(getApplicationContext())) {
-				dateFormat = new SimpleDateFormat("HH:mm");
-			}
-			return dateFormat.format(c.getTime());
+		public String getStart() {
+			return DateFormat.getTimeFormat(getApplicationContext()).format(new Date(mFrom.toMillis(false)));
 		}
 		
-		private Calendar getCalendar(String date, String time) {
-			Calendar c = Calendar.getInstance(TimeZone.getTimeZone("CET"));
-			Date d;
+		public String getEnd() {
+			return DateFormat.getTimeFormat(getApplicationContext()).format(new Date(mTo.toMillis(false)));
+		}
+		
+		public String getTitle() {
+			return mTitle;
+		}
+		
+		private Time getLocalTime(String date, String time) {
+			Time t = new Time("CET");
 			try {
-				d = new SimpleDateFormat("dd-MM-yyyy'T'HH:mm").parse(date + "T" + time);
-				c.set(d.getYear(), d.getMonth(), d.getDay(), d.getHours(), d.getMinutes());
+				Date d = new SimpleDateFormat("dd-MM-yyyy'T'HH:mm").parse(date + "T" + time);
+				t.set(0, d.getMinutes(), d.getHours(), d.getDate(), d.getMonth(), d.getYear() + 1900);
+				t.set(t.normalize(false));
 			} catch (ParseException e) {
 				e.printStackTrace();
 			}
-			return c;
+			t.switchTimezone(Time.getCurrentTimezone());
+			return t;
 		}
 
 		/**
@@ -88,17 +89,9 @@ public class IfmSchedule extends ListActivity {
 			if (mDay != ZERO_DAY) {
 				return mDay;
 			}
-			String day = "";
-			Date date;
-			try {
-				date = new SimpleDateFormat("dd-MM-yyyy").parse(mDate);
-				day = new SimpleDateFormat("EEEE").format(date);
-				String today = new SimpleDateFormat("EEEE").format(new Date());
-				if (day.equals(today)) {
-					day = new String("Today");
-				}
-			} catch (ParseException e) {
-				e.printStackTrace();
+			String day = DateUtils.getDayOfWeekString(mFrom.weekDay + 1, DateUtils.LENGTH_LONG);
+			if (DateUtils.isToday(mFrom.toMillis(false))) {
+				day = new String("Today");
 			}
 			return day;
 		}
@@ -134,9 +127,9 @@ public class IfmSchedule extends ListActivity {
 				scheduleItemView.setBackgroundResource(R.color.ifm1);
 				textView.setTextColor(Color.WHITE);
 			} else {
-				String from = mSchedule.get(position).mFrom;
-				String to = mSchedule.get(position).mTo;
-				Spanned str = Html.fromHtml("<b>" + from + " - " + to + "</b>  " + mSchedule.get(position).mTitle);
+				String from = mSchedule.get(position).getStart();
+				String to = mSchedule.get(position).getEnd();
+				Spanned str = Html.fromHtml("<b>" + from + " - " + to + "</b>  " + mSchedule.get(position).getTitle());
 				((TextView) scheduleItemView.findViewById(R.id.schedult_item)).setText(str);
 			}
 
@@ -241,7 +234,6 @@ public class IfmSchedule extends ListActivity {
 		setContentView(R.layout.schedule);
 		
 		getListView().setFocusable(false);
-		getListView().setBackgroundColor(R.color.schedule);
 		getListView().setDividerHeight(0);
 
 		mProgress = new ProgressDialog(this);
