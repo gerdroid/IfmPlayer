@@ -33,6 +33,14 @@ public class AsyncCoverLoader {
 		private Uri mUri;
 		
 		@Override
+		protected void onPreExecute() {
+			if (mShowProgress) {
+				mProgress.setVisibility(View.VISIBLE);
+			}
+			super.onPreExecute();
+		}
+		
+		@Override
 		protected Bitmap doInBackground(UpdateCoverImage... updates) {
 			mUri = updates[0].mCoverUri;
 			mChannel = updates[0].mChannel;
@@ -82,6 +90,7 @@ public class AsyncCoverLoader {
 	private Uri[] mCoverCache = new Uri[Constants.NUMBER_OF_CHANNELS];
 	private View mProgress;
 	private boolean[] mUpdated = new boolean[Constants.NUMBER_OF_CHANNELS];
+	private boolean mShowProgress;
 	
 	public AsyncCoverLoader(HttpClient httpClient, ChannelViewAdapter channelViewAdapter, View progress) {
 		mHttpClient = httpClient;
@@ -104,15 +113,11 @@ public class AsyncCoverLoader {
 		}
 	}
 	
-	private boolean isProgressShowing() {
-		return mProgress.getVisibility() == View.VISIBLE;
-	}
-	
 	public void showProgress() {
 		for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
 			mUpdated[i] = false;
 		}
-		mProgress.setVisibility(View.VISIBLE);
+		mShowProgress = true;
 	}
 	
 	private void hideProgress() {
@@ -120,13 +125,16 @@ public class AsyncCoverLoader {
 	}
 	
 	private void checkProgress() {
-		if (!isProgressShowing()) return;
+		if (!mShowProgress) return;
 		
 		boolean b = true;
 		for (int i=0; i<Constants.NUMBER_OF_CHANNELS; i++) {
 			b = b & mUpdated[i];
 		}
 		
-		if (b) hideProgress();
+		if (b) {
+			mShowProgress = false;
+			hideProgress();
+		}
 	}
 }
