@@ -162,7 +162,7 @@ public class IfmSchedule extends ListActivity {
 					Time to = getLocalTime(dateStr, date.getString("end"));
 					Time now = new Time();
 					now.setToNow();
-					if (from.after(now)) {
+					if (to.after(now)) {
 						schedule.add(new ScheduleItem(
 								item.getString("title"),
 								from, to));
