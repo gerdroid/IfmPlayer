@@ -42,10 +42,10 @@ public class IfmSchedule extends ListActivity {
 		private Time mTo;
 		private String mDay = ZERO_DAY;
 
-		public ScheduleItem(String title, String date, String from, String to) {
+		public ScheduleItem(String title, Time from, Time to) {
 			mTitle = title;
-			mFrom = getLocalTime(date, from);
-			mTo = getLocalTime(date, to);
+			mFrom = from;
+			mTo = to;
 		}
 		
 		public String getStart() {
@@ -60,19 +60,6 @@ public class IfmSchedule extends ListActivity {
 			return mTitle;
 		}
 		
-		private Time getLocalTime(String date, String time) {
-			Time t = new Time("CET");
-			try {
-				Date d = new SimpleDateFormat("dd-MM-yyyy'T'HH:mm").parse(date + "T" + time);
-				t.set(0, d.getMinutes(), d.getHours(), d.getDate(), d.getMonth(), d.getYear() + 1900);
-				t.set(t.normalize(false));
-			} catch (ParseException e) {
-				e.printStackTrace();
-			}
-			t.switchTimezone(Time.getCurrentTimezone());
-			return t;
-		}
-
 		/**
 		 * Constructor for Seperator in schedule table
 		 * @param day
@@ -116,24 +103,25 @@ public class IfmSchedule extends ListActivity {
 
 		@Override
 		public View getView(int position, View convertView, ViewGroup parent) {
-			View scheduleItemView = LayoutInflater.from(IfmSchedule.this)
-					.inflate(R.layout.schedule_item, parent, false);
 			ScheduleItem item = mSchedule.get(position);
+			View itemView = null;
 			if (item.isSeperator()) {
-				TextView textView = (TextView) scheduleItemView.findViewById(R.id.schedult_item);
+				itemView = LayoutInflater.from(IfmSchedule.this).inflate(R.layout.schedule_sep, parent, false);
+				TextView textView = (TextView) itemView.findViewById(R.id.schedult_item);
 				textView.setText(item.getDay());
 				textView.setTextSize(20);
 				textView.setTextScaleX(1.4f);
-				scheduleItemView.setBackgroundResource(R.color.ifm1);
+				itemView.setBackgroundResource(R.color.ifm1);
 				textView.setTextColor(Color.WHITE);
 			} else {
+				itemView = LayoutInflater.from(IfmSchedule.this).inflate(R.layout.schedule_item, parent, false);
 				String from = mSchedule.get(position).getStart();
 				String to = mSchedule.get(position).getEnd();
 				Spanned str = Html.fromHtml("<b>" + from + " - " + to + "</b>  " + mSchedule.get(position).getTitle());
-				((TextView) scheduleItemView.findViewById(R.id.schedult_item)).setText(str);
+				((TextView) itemView.findViewById(R.id.schedult_item)).setText(str);
 			}
 
-			return scheduleItemView;
+			return itemView;
 		}
 
 		@Override
@@ -169,11 +157,16 @@ public class IfmSchedule extends ListActivity {
 				try {
 					JSONObject item = content.getJSONObject(i);
 					JSONObject date = item.getJSONObject("date");
-					schedule.add(new ScheduleItem(
-							item.getString("title"), 
-							date.getString("day"), 
-							date.getString("start"),
-							date.getString("end")));
+					String dateStr = date.getString("day");
+					Time from = getLocalTime(dateStr, date.getString("start"));
+					Time to = getLocalTime(dateStr, date.getString("end"));
+					Time now = new Time();
+					now.setToNow();
+					if (from.after(now)) {
+						schedule.add(new ScheduleItem(
+								item.getString("title"),
+								from, to));
+					}
 				} catch (JSONException e) {
 					e.printStackTrace();
 				}
@@ -192,14 +185,27 @@ public class IfmSchedule extends ListActivity {
 			
 			return newSchedule;
 		}
+		
+		private Time getLocalTime(String date, String time) {
+			Time t = new Time("CET");
+			try {
+				Date d = new SimpleDateFormat("dd-MM-yyyy'T'HH:mm").parse(date + "T" + time);
+				t.set(0, d.getMinutes(), d.getHours(), d.getDate(), d.getMonth(), d.getYear() + 1900);
+				t.set(t.normalize(false));
+			} catch (ParseException e) {
+				e.printStackTrace();
+			}
+			t.switchTimezone(Time.getCurrentTimezone());
+			return t;
+		}
 
 		@Override
 		protected void onPostExecute(List<ScheduleItem> result) {
+			super.onPostExecute(result);
 			mSchedule.clear();
 			mSchedule.addAll(result);
 			mProgress.cancel();
 			mScheduleListAdapter.notifyDataSetChanged();
-			super.onPostExecute(result);
 		}
 
 		private JSONArray getContent(String url) {
