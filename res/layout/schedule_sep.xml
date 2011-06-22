@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android" 
+	android:id="@+id/schedult_item"
+    android:layout_width="fill_parent" 
+    android:layout_height="wrap_content"
+    android:textColor="#ff000000"
+    android:background="@color/schedule"
+    android:textSize="18dip"
+    android:paddingTop="2dip"
+    android:paddingBottom="2dip"
+    android:paddingLeft="3dip"
+    android:paddingRight="3dip"/>
